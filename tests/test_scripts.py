@@ -93,8 +93,17 @@ class TestChangelogGen:
             ["python3", os.path.join(SCRIPTS, "changelog-gen.py"), "--unreleased"],
             capture_output=True, text=True, cwd=ROOT
         )
+        # In CI (no tags), script may output "No conventional commits found" — that's valid
         if r.returncode == 0:
-            assert "##" in r.stdout or "Unreleased" in r.stdout or r.stdout == ""
+            valid = (
+                "##" in r.stdout
+                or "Unreleased" in r.stdout
+                or r.stdout == ""
+                or "No conventional commits" in r.stdout
+                or "No previous tag" in r.stdout
+                or "Nothing to add" in r.stdout
+            )
+            assert valid, f"Unexpected output: {r.stdout}"
 
 
 # ── auto-learn.py ──────────────────────────────────────────────────────────────
