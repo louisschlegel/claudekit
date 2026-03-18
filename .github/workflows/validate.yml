@@ -107,8 +107,8 @@ jobs:
               print(f"Intents in hook but not in routing table: {uncovered}")
               exit(1)
 
-          # Check all routing targets exist as files
-          targets = re.findall(r'`workflows/([^`]+)`', claude)
+          # Check all routing targets exist as files (skip placeholders like [nom].md)
+          targets = re.findall(r'`workflows/([^`\[]+\.md)`', claude)
           missing = [t for t in targets if not os.path.exists(f'workflows/{t}')]
           if missing:
               print(f"Routing targets with no file: {missing}")
