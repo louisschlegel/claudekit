@@ -11,6 +11,8 @@ Génère:
     .claude/hooks/*.sh             (mise à jour des hooks existants)
 """
 
+import argparse
+import difflib
 import json
 import os
 import sys
@@ -108,7 +110,7 @@ PACKAGE_MANAGER_PERMISSIONS = {
     "pnpm": ["Bash(pnpm:*)"],
     "yarn": ["Bash(yarn:*)"],
     "bun": ["Bash(bun:*)", "Bash(bunx:*)"],
-    "deno": ["Bash(deno:*)"],
+    "deno": ["Bash(deno:*)", "Bash(deno run:*)", "Bash(deno test:*)", "Bash(deno compile:*)", "Bash(deno fmt:*)", "Bash(deno lint:*)"],
     "uv": ["Bash(uv:*)"],
     "poetry": ["Bash(poetry:*)"],
     "conda": ["Bash(conda:*)", "Bash(mamba:*)"],
@@ -118,7 +120,7 @@ PACKAGE_MANAGER_PERMISSIONS = {
 # ─── Monorepo tools ────────────────────────────────────────────────────────────
 MONOREPO_PERMISSIONS = {
     "turborepo": ["Bash(turbo:*)"],
-    "nx": ["Bash(nx:*)", "Bash(npx:*)"],
+    "nx": ["Bash(nx:*)", "Bash(npx:*)", "Bash(nx affected:*)", "Bash(nx run-many:*)", "Bash(nx graph:*)"],
     "lerna": ["Bash(lerna:*)", "Bash(npx:*)"],
     "bazel": ["Bash(bazel:*)", "Bash(buildozer:*)"],
     "buck": ["Bash(buck:*)"],
@@ -170,7 +172,7 @@ INFRA_PERMISSIONS = {
     "kubernetes": ["Bash(kubectl:*)", "Bash(helm:*)", "Bash(k9s:*)", "Bash(kustomize:*)", "Bash(k3s:*)"],
     "terraform": ["Bash(terraform:*)", "Bash(terragrunt:*)", "Bash(tofu:*)"],
     "opentofu": ["Bash(tofu:*)"],
-    "pulumi": ["Bash(pulumi:*)"],
+    "pulumi": ["Bash(pulumi:*)", "Bash(pulumi up:*)", "Bash(pulumi preview:*)", "Bash(pulumi destroy:*)", "Bash(pulumi stack:*)"],
     "ansible": ["Bash(ansible:*)", "Bash(ansible-playbook:*)", "Bash(ansible-lint:*)"],
     "vercel": ["Bash(vercel:*)"],
     "railway": [],
@@ -643,6 +645,9 @@ INTENT_RULES = [
     ("refactor",         ["refactor", "nettoie", "restructure", "améliore la structure", "clean up", "dette technique"]),
     ("improve-template", ["améliore le template", "self-improve", "mets-toi à jour", "update template", "template improve"]),
     ("onboard",          ["setup", "initialise", "configure le projet", "onboard", "nouveau projet", "legacy"]),
+    ("ab-test",          ["a/b test", "feature flag", "split test", "rollout progressif", "expérimentation", "statistical significance"]),
+    ("data-quality",     ["qualité des données", "data quality", "great expectations", "données corrompues", "anomalie de données"]),
+    ("llm-eval",         ["évalue le rag", "llm eval", "ragas", "qualité des réponses", "hallucination", "benchmark llm", "rag evaluation"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]
@@ -901,14 +906,38 @@ def build_settings(manifest: dict) -> dict:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def main():
-    print("🔧 gen.py — Génération de la config Claude Code")
+def _build_generated_files(manifest: dict) -> dict:
+    """Return a dict of {relative_path: content_str} for all files gen.py would write."""
+    files = {}
+
+    settings = build_settings(manifest)
+    files[".claude/settings.local.json"] = json.dumps(settings, indent=2, ensure_ascii=False)
+
+    files[".claude/hooks/session-start.sh"] = make_session_start(manifest)
+    files[".claude/hooks/user-prompt-submit.sh"] = make_user_prompt_submit(manifest)
+    files[".claude/hooks/pre-bash-guard.sh"] = make_pre_bash_guard(manifest)
+
+    guards = manifest.get("guards", {})
+    if any(guards.values()):
+        files[".claude/hooks/post-edit.sh"] = make_post_edit(manifest)
+
+    files[".claude/hooks/stop.sh"] = make_stop(manifest)
+
+    mcp_servers = build_mcp_servers(manifest)
+    if mcp_servers:
+        files[".mcp.json"] = json.dumps({"mcpServers": mcp_servers}, indent=2, ensure_ascii=False)
+
+    return files
+
+
+def main(dry_run: bool = False, show_diff: bool = False):
+    print("gen.py — Generation de la config Claude Code")
     print(f"   Root: {ROOT}")
 
     # Load manifest
     if not MANIFEST_PATH.exists() or MANIFEST_PATH.read_text().strip() in ("{}", ""):
-        print("⚠️  project.manifest.json est vide. Lance le setup dans Claude Code d'abord.")
-        print("   Dans Claude Code, tape : /setup ou demande à Claude de faire le setup.")
+        print("project.manifest.json est vide. Lance le setup dans Claude Code d'abord.")
+        print("   Dans Claude Code, tape : /setup ou demande a Claude de faire le setup.")
         sys.exit(1)
 
     with open(MANIFEST_PATH) as f:
@@ -917,56 +946,87 @@ def main():
     project_name = manifest.get("project", {}).get("name", "Projet")
     print(f"   Projet: {project_name}")
 
-    # Generate settings.local.json
-    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
-    settings = build_settings(manifest)
-    with open(SETTINGS_PATH, "w") as f:
-        json.dump(settings, f, indent=2, ensure_ascii=False)
-    print(f"✅ .claude/settings.local.json — {len(settings['permissions']['allow'])} permissions")
+    generated = _build_generated_files(manifest)
 
-    # Generate hooks
+    # ── --dry-run ─────────────────────────────────────────────────────────────
+    if dry_run:
+        print()
+        print("[dry-run] Fichiers qui seraient generés :")
+        for rel_path, content in generated.items():
+            size = len(content.encode("utf-8"))
+            print(f"  {rel_path}  ({size} bytes)")
+        print()
+        print(f"  Total : {len(generated)} fichier(s)")
+        return
+
+    # ── --diff ────────────────────────────────────────────────────────────────
+    if show_diff:
+        print()
+        any_diff = False
+        for rel_path, new_content in generated.items():
+            abs_path = ROOT / rel_path
+            if abs_path.exists():
+                old_content = abs_path.read_text()
+            else:
+                old_content = ""
+            if old_content == new_content:
+                continue
+            any_diff = True
+            diff_lines = list(difflib.unified_diff(
+                old_content.splitlines(keepends=True),
+                new_content.splitlines(keepends=True),
+                fromfile=f"a/{rel_path}",
+                tofile=f"b/{rel_path}",
+            ))
+            print(f"--- diff: {rel_path} ---")
+            print("".join(diff_lines))
+        if not any_diff:
+            print("[diff] Aucun changement — les fichiers sont deja a jour.")
+        return
+
+    # ── Normal write ──────────────────────────────────────────────────────────
+    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
+
+    settings_content = generated[".claude/settings.local.json"]
+    SETTINGS_PATH.write_text(settings_content)
+    settings = json.loads(settings_content)
+    print(f"[ok] .claude/settings.local.json — {len(settings['permissions']['allow'])} permissions")
+
     hooks_generated = []
 
-    session_start = make_session_start(manifest)
-    (HOOKS_DIR / "session-start.sh").write_text(session_start)
+    (HOOKS_DIR / "session-start.sh").write_text(generated[".claude/hooks/session-start.sh"])
     (HOOKS_DIR / "session-start.sh").chmod(0o755)
     hooks_generated.append("session-start.sh")
 
-    user_prompt = make_user_prompt_submit(manifest)
-    (HOOKS_DIR / "user-prompt-submit.sh").write_text(user_prompt)
+    (HOOKS_DIR / "user-prompt-submit.sh").write_text(generated[".claude/hooks/user-prompt-submit.sh"])
     (HOOKS_DIR / "user-prompt-submit.sh").chmod(0o755)
     hooks_generated.append("user-prompt-submit.sh")
 
-    pre_bash = make_pre_bash_guard(manifest)
-    (HOOKS_DIR / "pre-bash-guard.sh").write_text(pre_bash)
+    (HOOKS_DIR / "pre-bash-guard.sh").write_text(generated[".claude/hooks/pre-bash-guard.sh"])
     (HOOKS_DIR / "pre-bash-guard.sh").chmod(0o755)
     hooks_generated.append("pre-bash-guard.sh")
 
     guards = manifest.get("guards", {})
     if any(guards.values()):
-        post_edit = make_post_edit(manifest)
-        (HOOKS_DIR / "post-edit.sh").write_text(post_edit)
+        (HOOKS_DIR / "post-edit.sh").write_text(generated[".claude/hooks/post-edit.sh"])
         (HOOKS_DIR / "post-edit.sh").chmod(0o755)
         hooks_generated.append(f"post-edit.sh ({[k for k,v in guards.items() if v]})")
 
-    stop = make_stop(manifest)
-    (HOOKS_DIR / "stop.sh").write_text(stop)
+    (HOOKS_DIR / "stop.sh").write_text(generated[".claude/hooks/stop.sh"])
     (HOOKS_DIR / "stop.sh").chmod(0o755)
     hooks_generated.append("stop.sh")
 
-    print(f"✅ Hooks générés : {', '.join(hooks_generated)}")
+    print(f"[ok] Hooks generes : {', '.join(hooks_generated)}")
 
     # Generate .mcp.json
     mcp_servers = build_mcp_servers(manifest)
     if mcp_servers:
-        mcp_config = {"mcpServers": mcp_servers}
-        with open(MCP_PATH, "w") as f:
-            json.dump(mcp_config, f, indent=2, ensure_ascii=False)
-        print(f"✅ .mcp.json — {len(mcp_servers)} serveur(s) MCP : {list(mcp_servers.keys())}")
+        MCP_PATH.write_text(generated[".mcp.json"])
+        print(f"[ok] .mcp.json — {len(mcp_servers)} serveur(s) MCP : {list(mcp_servers.keys())}")
     else:
         if MCP_PATH.exists():
             MCP_PATH.unlink()
-        print("ℹ️  Pas de MCP servers configurés")
+        print("    Pas de MCP servers configures")
 
     # Summary
     stack = manifest.get("stack", {})
@@ -974,17 +1034,36 @@ def main():
     active_agents = [k for k, v in agents.items() if v]
 
     print()
-    print("═══════════════════════════════════════════")
-    print(f"  {project_name} — config générée avec succès")
-    print("═══════════════════════════════════════════")
+    print("===========================================")
+    print(f"  {project_name} — config generee avec succes")
+    print("===========================================")
     print(f"  Stack    : {', '.join(stack.get('languages', []) + stack.get('frameworks', []))}")
     print(f"  Guards   : {', '.join([k for k,v in guards.items() if v]) or 'aucun'}")
     print(f"  Agents   : {', '.join(active_agents) or 'aucun'}")
     print(f"  MCP      : {', '.join(mcp_servers.keys()) or 'aucun'}")
     print()
-    print("  Redémarre Claude Code pour appliquer les changements.")
+    print("  Redemarre Claude Code pour appliquer les changements.")
     print()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="gen.py — Generateur de config Claude Code depuis project.manifest.json"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Afficher les fichiers qui seraient generés (nom + taille) sans rien ecrire.",
+    )
+    parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="Afficher un diff unifie entre les fichiers actuels et ce qui serait genere.",
+    )
+    args = parser.parse_args()
+
+    if args.dry_run and args.diff:
+        print("Erreur : --dry-run et --diff sont mutuellement exclusifs.")
+        sys.exit(1)
+
+    main(dry_run=args.dry_run, show_diff=args.diff)

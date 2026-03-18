@@ -2,7 +2,7 @@
 
 [![Validate](https://github.com/louisschlegel/claudekit/actions/workflows/validate.yml/badge.svg)](https://github.com/louisschlegel/claudekit/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](.template/version.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](.template/version.json)
 
 Un template auto-configurant, auto-améliorant, qui génère toute l'infrastructure Claude Code adaptée à n'importe quel projet — hooks, permissions, MCP servers, guards qualité, sous-agents, workflows complets — à partir d'un simple interview conversationnel.
 
@@ -38,7 +38,7 @@ Claude détecte le manifest vide → lance le setup automatiquement → génère
 
 ```
 ton-projet/
-├── CLAUDE.md                    # Orchestrateur — routing 15 intents
+├── CLAUDE.md                    # Orchestrateur — routing 18 intents
 ├── project.manifest.json        # Config générée lors du setup
 ├── learning.md                  # Mémoire institutionnelle (auto-alimentée)
 ├── .mcp.json                    # Serveurs MCP configurés
@@ -50,7 +50,7 @@ ton-projet/
 │       ├── pre-bash-guard.sh    # Blocage commandes destructives
 │       ├── post-edit.sh         # Guards qualité (lint, type-check, migrations)
 │       └── stop.sh              # Auto-learning en fin de session
-└── ...                          # Tes 14 agents et 14 workflows
+└── ...                          # Tes 15 agents et 17 workflows
 ```
 
 ---
@@ -59,15 +59,16 @@ ton-projet/
 
 ```
 template/
-├── CLAUDE.md                        # Orchestrateur — routing table (15 intents) + règles
+├── CLAUDE.md                        # Orchestrateur — routing table (18 intents) + règles
 ├── project.manifest.json            # {} → déclenche setup | rempli → contexte
 ├── project.manifest.EXAMPLE.json   # Référence complète du schema
 ├── learning.md.template             # Template pour la mémoire persistante
 ├── install.sh                       # One-liner pour projets legacy
 │
 ├── scripts/
-│   ├── gen.py                       # Générateur principal (manifest → tout)
-│   ├── auto-learn.py                # Extrait les handoffs JSON agents → learning.md
+│   ├── gen.py                       # Générateur principal (manifest → tout) — --dry-run, --diff
+│   ├── claudekit.py                 # CLI unifié : validate, check, gen, bump, status, install
+│   ├── auto-learn.py                # Extrait les handoffs JSON agents → learning.md (--deduplicate)
 │   ├── self-improve.py              # Moteur d'observation (log friction events)
 │   ├── version-bump.py              # Semantic versioning (patch/minor/major)
 │   └── changelog-gen.py             # git log → CHANGELOG.md (conventional commits)
@@ -82,7 +83,7 @@ template/
 │   ├── hooks/
 │   │   ├── session-start.sh         # Bootstrap (40+ détecteurs stack + 7 signaux)
 │   │   └── user-prompt-submit.sh    # Bootstrap (15 intents + 8 patterns injection)
-│   └── agents/                      # 14 agents spécialisés
+│   └── agents/                      # 15 agents spécialisés
 │       ├── architect.md             # Conception + ADR + JSON handoff
 │       ├── reviewer.md              # Code review (BLOCKER/WARNING/SUGGESTION)
 │       ├── tester.md                # Tests exhaustifs
@@ -93,12 +94,13 @@ template/
 │       ├── doc-writer.md            # Docstrings + README + API docs
 │       ├── performance-analyst.md   # Profiling + optimisation
 │       ├── release-manager.md       # Orchestration release + changelog
+│       ├── cost-analyst.md          # Optimisation coûts cloud (AWS/GCP/Azure) + LLM tokens
 │       ├── data-engineer.md         # Pipelines data, dbt, Airflow, streaming
 │       ├── ml-engineer.md           # MLOps : train → serve → monitor
 │       ├── devops-engineer.md       # Infra, CI/CD, observabilité, résilience
 │       └── template-improver.md     # Meta-agent : améliore le template
 │
-├── workflows/                       # 14 workflows end-to-end
+├── workflows/                       # 17 workflows end-to-end
 │   ├── feature.md                   # Feature branch → merge + auto-learn
 │   ├── bugfix.md                    # Bug → root cause → test → fix
 │   ├── hotfix.md                    # Correctif urgent prod (express)
@@ -112,7 +114,10 @@ template/
 │   ├── incident-response.md         # P1/P2 — mitigation → RCA → post-mortem
 │   ├── performance-baseline.md      # Profiling → baseline → benchmark
 │   ├── publish-package.md           # npm/PyPI/crates.io — build → sign → publish
-│   └── api-design.md                # API-first : spec → review → mock → implem
+│   ├── api-design.md                # API-first : spec → review → mock → implem
+│   ├── a-b-test.md                  # Power analysis → feature flags → significance → ship/kill
+│   ├── data-quality.md              # Great Expectations + dbt + ISO 8000 score + SLA
+│   └── llm-eval.md                  # RAGAS + hallucination detection + BLEU/ROUGE + deploy gate
 │
 └── .template/
     ├── version.json                 # Version du template + historique
@@ -128,7 +133,7 @@ template/
 
 Chaque message est analysé avant d'arriver à Claude :
 - **Injection detection** : bloque 8 patterns de prompt injection
-- **Intent classification** : 15 intents détectés automatiquement
+- **Intent classification** : 18 intents détectés automatiquement
 
 | Intent | Mots-clés déclencheurs |
 |--------|----------------------|
@@ -138,6 +143,9 @@ Chaque message est analysé avant d'arriver à Claude :
 | `perf-test` | load test, benchmark, locust, k6 |
 | `publish` | publie sur npm/pypi, npm publish |
 | `api-design` | design api, nouvel endpoint, openapi |
+| `ab-test` | a/b test, feature flag, expérience, power analysis, significance |
+| `data-quality` | qualité des données, great expectations, dbt test, validation données |
+| `llm-eval` | évalue le rag, llm eval, ragas, hallucination, benchmark llm |
 | `feature` | implémente, ajoute, nouvelle feature |
 | `bugfix` | bug, crash, erreur, fixe, regression |
 | `release` | release, prépare une version, tag v |
@@ -201,6 +209,7 @@ Tous les agents ont un **HANDOFF JSON structuré** pour passage de contexte, et 
 | `doc-writer` | Docstrings + README + API docs | .md + docstrings |
 | `performance-analyst` | Profiling + optimisation | — |
 | `release-manager` | Orchestration release + changelog | CHANGELOG |
+| `cost-analyst` | Optimisation coûts cloud (AWS/GCP/Azure) + LLM tokens | — |
 | `data-engineer` | Pipelines data, dbt, Airflow, streaming | dbt models, DAGs |
 | `ml-engineer` | MLOps : framing → train → serve → monitor | Scripts ML |
 | `devops-engineer` | Infra, CI/CD, observabilité, résilience | Dockerfile, CI, IaC |
@@ -226,6 +235,9 @@ Tous les agents ont un **HANDOFF JSON structuré** pour passage de contexte, et 
 | `performance-baseline.md` | `perf-test` | performance-analyst → architect |
 | `publish-package.md` | `publish` | security-auditor → release-manager |
 | `api-design.md` | `api-design` | architect → reviewer → doc-writer |
+| `a-b-test.md` | `ab-test` | ml-engineer → tester → reviewer |
+| `data-quality.md` | `data-quality` | data-engineer → tester → reviewer |
+| `llm-eval.md` | `llm-eval` | ml-engineer → tester → reviewer |
 
 ---
 
@@ -252,7 +264,7 @@ Copier le manifest le plus proche de ton projet, le renommer `project.manifest.j
 |---------|-------------------|
 | `.claude/settings.local.json` | Permissions Bash adaptées au stack |
 | `.claude/hooks/session-start.sh` | Contexte + 7 signaux opérationnels |
-| `.claude/hooks/user-prompt-submit.sh` | 15 intents + injection detection |
+| `.claude/hooks/user-prompt-submit.sh` | 18 intents + injection detection |
 | `.claude/hooks/pre-bash-guard.sh` | Blocage commandes destructives |
 | `.claude/hooks/post-edit.sh` | Guards qualité |
 | `.claude/hooks/stop.sh` | Auto-learning async |
@@ -336,9 +348,24 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 ## Commandes utiles
 
 ```bash
-make validate      # CI complète en local (scripts + hooks + JSON + coverage + gen.py end-to-end)
+# claudekit CLI (nouveau en v1.1.0)
+python3 scripts/claudekit.py status     # Vue d'ensemble : version, agents, workflows, scripts
+python3 scripts/claudekit.py validate   # CI complète en local
+python3 scripts/claudekit.py gen        # Régénère la config depuis project.manifest.json
+python3 scripts/claudekit.py bump patch # Bump version (patch/minor/major)
+python3 scripts/claudekit.py install /path/to/project  # Installe dans un projet existant
+
+# gen.py options avancées
+python3 scripts/gen.py --dry-run        # Prévisualise les fichiers générés sans écrire
+python3 scripts/gen.py --diff           # Montre les diffs avec la config actuelle
+
+# auto-learn
+python3 scripts/auto-learn.py --deduplicate  # Déduplique les entrées cross-session
+
+# make shortcuts
+make validate      # CI complète en local
 make check         # Validation rapide avant de pusher
-make gen           # Régénère la config depuis project.manifest.json
+make gen           # Alias pour gen.py
 make bump-patch    # Bump version patch (1.0.0 → 1.0.1)
 make changelog     # Met à jour CHANGELOG.md depuis git log
 ```
