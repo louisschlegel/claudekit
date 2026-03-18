@@ -1,0 +1,108 @@
+{
+  "_comment": "Exemple de manifest complet — copier/adapter après setup. Les champs _comment sont ignorés.",
+  "project": {
+    "name": "mon-projet",
+    "description": "App mobile de gestion de planning personnel avec IA",
+    "version": "0.1.0",
+    "created_at": "2026-03-18",
+    "language": "fr"
+  },
+  "stack": {
+    "languages": ["python", "typescript"],
+    "frameworks": ["fastapi", "react-native", "expo"],
+    "databases": ["postgresql", "redis"],
+    "runtime": ["docker"],
+    "testing": ["pytest", "jest"],
+    "linting": ["ruff", "eslint"]
+  },
+  "workflow": {
+    "git_strategy": "feature-branch",
+    "commit_language": "en",
+    "ci": "github-actions",
+    "deploy_target": "vps-ovh",
+    "deploy_command": "docker compose -f docker-compose.prod.yml up -d --build",
+    "environments": ["staging", "production"],
+    "health_check_url": "https://api.mon-projet.com/health",
+    "smoke_tests": "pytest tests/smoke/ -q",
+    "staging_validation": true,
+    "github_releases": true,
+    "auto_deploy": false
+  },
+  "mcp_servers": ["filesystem", "github", "postgres"],
+  "guards": {
+    "lint": true,
+    "type_check": true,
+    "test_on_edit": false,
+    "migration_check": true,
+    "i18n_check": false
+  },
+  "permissions": {
+    "extra_bash": ["stripe", "ffmpeg"],
+    "web_domains": ["api.stripe.com", "api.openai.com"]
+  },
+  "agents": {
+    "architect": true,
+    "reviewer": true,
+    "tester": true,
+    "security-auditor": true,
+    "debug-detective": true,
+    "deployer": false,
+    "explorer": true,
+    "doc-writer": true,
+    "performance-analyst": false,
+    "release-manager": true,
+    "data-engineer": false,
+    "ml-engineer": false,
+    "devops-engineer": false,
+    "template-improver": true
+  },
+  "automation": {
+    "auto_review_before_commit": false,
+    "auto_test_after_feature": true,
+    "auto_security_audit_before_release": true,
+    "auto_changelog_on_release": true,
+    "self_improve_every_n_sessions": 5
+  },
+  "security": {
+    "scan_on_push": true,
+    "block_secrets_in_commits": true,
+    "require_security_gate_for_release": true,
+    "injection_detection": true
+  },
+  "notifications": {
+    "provider": "none",
+    "_comment_provider": "Options: none, terminal-notifier (macOS), notify-send (Linux), slack, email",
+    "slack_channel": "#dev-alerts",
+    "on_events": ["deploy", "security_finding", "test_failure"]
+  },
+  "ml": {
+    "_comment": "Section optionnelle pour projets ML/AI — remplir si ml-engineer activé",
+    "task_type": "classification",
+    "_comment_task_type": "classification | regression | nlp | vision | timeseries | rag | generative | embedding | rl",
+    "frameworks": ["pytorch", "transformers", "scikit-learn"],
+    "experiment_tracking": "mlflow",
+    "_comment_tracking": "mlflow | wandb | comet | neptune | none",
+    "data_versioning": "dvc",
+    "_comment_dv": "dvc | lakeFS | pachyderm | none",
+    "serving": "bentoml",
+    "_comment_serving": "bentoml | torchserve | triton | vllm | ollama | sagemaker | vertex | none",
+    "vector_db": null,
+    "_comment_vdb": "faiss | chroma | qdrant | weaviate | pinecone | milvus | null",
+    "target_latency_ms": 100,
+    "target_metric": "f1_macro",
+    "baseline_score": 0.72
+  },
+  "template": {
+    "version": "1.0.0",
+    "auto_improve": true,
+    "improve_threshold_sessions": 5
+  },
+  "context": {
+    "learning_file": "learning.md",
+    "custom_rules": [
+      "Ne jamais hardcoder de couleurs hex — utiliser les tokens du design system",
+      "Toujours valider les données Pydantic au niveau de l'API, pas dans les modèles",
+      "Chaque migration Django doit avoir un nom descriptif (pas auto-généré)"
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+# Secrets & environment
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+secrets/
+credentials/
+
+# Dependencies
+node_modules/
+vendor/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+target/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+
+# Test & coverage
+coverage/
+.coverage
+.pytest_cache/
+htmlcov/
+*.lcov
+
+# Misc
+*.tmp
+*.bak
+.cache/

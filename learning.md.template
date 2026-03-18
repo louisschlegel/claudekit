@@ -1,0 +1,56 @@
+# {{PROJECT_NAME}} — Mémoire institutionnelle
+
+> Ce fichier est lu automatiquement à chaque session Claude Code.
+> Il accumule les patterns, décisions, et bugs importants du projet.
+> Ne jamais supprimer les entrées existantes — append only pour les bugs.
+
+---
+
+## 1. Architecture & Décisions
+
+<!-- Décisions d'architecture importantes et leur justification -->
+<!-- Ex: "On utilise X plutôt que Y parce que..." -->
+
+---
+
+## 2. Patterns & Conventions
+
+<!-- Patterns récurrents, conventions de code spécifiques au projet -->
+<!-- Ex: "Toujours utiliser X pour Y", "Structure d'un Z : ..." -->
+
+---
+
+## 3. Stack & Config
+
+<!-- Infos techniques utiles : versions, configs particulières, gotchas -->
+<!-- Ex: "La variable X doit être définie avant Y", "Le port Z est réservé" -->
+
+---
+
+## 4. Workflow
+
+<!-- Commandes importantes, processus de déploiement, CI/CD -->
+<!-- Ex: "Pour déployer : faire X puis Y", "Les tests s'exécutent avec Z" -->
+
+---
+
+## 5. Bugs résolus
+
+<!-- Append only — ne jamais supprimer -->
+<!-- Format : [DATE] Description du bug → Solution appliquée -->
+
+---
+
+## 6. Travail en cours
+
+<!-- Ce sur quoi on travaille actuellement — mis à jour à chaque session -->
+<!-- Effacer une entrée quand c'est terminé -->
+
+---
+
+## 7. Règles auto-extraites
+
+<!-- ⚠️ SECTION GÉRÉE AUTOMATIQUEMENT par scripts/auto-learn.py — ne pas éditer manuellement -->
+<!-- Alimentée via : python3 scripts/auto-learn.py --extract-patterns -->
+<!-- Les règles ici sont des candidats détectés automatiquement depuis les 20 dernières entrées. -->
+<!-- Pour les promouvoir en règles officielles : les copier dans project.manifest.json > custom_rules -->

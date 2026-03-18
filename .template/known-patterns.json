@@ -1,0 +1,5 @@
+{
+  "patterns": [],
+  "last_updated": null,
+  "_comment": "Patterns observed during sessions, waiting for enough confidence to apply. Each pattern has: type, description, observed_count, added, last_seen, suggested_fix."
+}
