@@ -93,8 +93,17 @@ class TestChangelogGen:
             ["python3", os.path.join(SCRIPTS, "changelog-gen.py"), "--unreleased"],
             capture_output=True, text=True, cwd=ROOT
         )
+        # In CI (no tags), script may output "No conventional commits found" — that's valid
         if r.returncode == 0:
-            assert "##" in r.stdout or "Unreleased" in r.stdout or r.stdout == ""
+            valid = (
+                "##" in r.stdout
+                or "Unreleased" in r.stdout
+                or r.stdout == ""
+                or "No conventional commits" in r.stdout
+                or "No previous tag" in r.stdout
+                or "Nothing to add" in r.stdout
+            )
+            assert valid, f"Unexpected output: {r.stdout}"
 
 
 # ── auto-learn.py ──────────────────────────────────────────────────────────────
@@ -161,6 +170,7 @@ class TestHooksSyntax:
         "pre-bash-guard.sh",
         "post-edit.sh",
         "stop.sh",
+        "pre-push.sh",
     ]
 
     @pytest.mark.parametrize("hook", HOOKS)
@@ -170,3 +180,96 @@ class TestHooksSyntax:
             pytest.skip(f"{hook} not present (generated hook)")
         r = subprocess.run(["bash", "-n", path], capture_output=True, text=True)
         assert r.returncode == 0, f"Syntax error in {hook}:\n{r.stderr}"
+
+
+# ── claudekit.py ──────────────────────────────────────────────────────────────
+
+class TestClaudekitCLI:
+    def test_compiles(self):
+        r = compile_script("claudekit.py")
+        assert r.returncode == 0, r.stderr
+
+    def test_help_flag(self):
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "claudekit.py"), "--help"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        assert r.returncode == 0
+
+    def test_status_runs(self):
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "claudekit.py"), "status"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        assert r.returncode == 0, f"claudekit status failed:\n{r.stderr}"
+        assert "Version" in r.stdout or "version" in r.stdout.lower()
+
+    def test_status_lists_agents(self):
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "claudekit.py"), "status"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        assert r.returncode == 0
+        assert "agent" in r.stdout.lower()
+
+    def test_status_lists_workflows(self):
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "claudekit.py"), "status"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        assert r.returncode == 0
+        assert "workflow" in r.stdout.lower()
+
+
+# ── migrate-template.py ───────────────────────────────────────────────────────
+
+class TestMigrateTemplate:
+    def test_compiles(self):
+        r = compile_script("migrate-template.py")
+        assert r.returncode == 0, r.stderr
+
+    def test_help_flag(self):
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "migrate-template.py"), "--help"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        assert r.returncode == 0
+
+    def test_check_flag(self):
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "migrate-template.py"), "--check"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        # 0 = up to date, 1 = migrations available — both are valid
+        assert r.returncode in (0, 1)
+
+    def test_dry_run_does_not_modify_manifest(self):
+        manifest_path = os.path.join(ROOT, "project.manifest.json")
+        with open(manifest_path) as f:
+            original = f.read()
+        r = subprocess.run(
+            ["python3", os.path.join(SCRIPTS, "migrate-template.py"), "--dry-run"],
+            capture_output=True, text=True, cwd=ROOT
+        )
+        with open(manifest_path) as f:
+            after = f.read()
+        assert original == after, "dry-run should not modify project.manifest.json"
+
+    def test_migration_100_to_110_adds_fields(self):
+        """Test that migration adds agents[] and workflows[] if missing."""
+        import importlib.util as ilu
+        spec = ilu.spec_from_file_location("mt", os.path.join(SCRIPTS, "migrate-template.py"))
+        mt = ilu.module_from_spec(spec)
+        spec.loader.exec_module(mt)
+
+        manifest = {
+            "project": {"name": "test", "type": "web-app", "language": "fr"},
+            "stack": {"languages": ["python"], "frameworks": []},
+            "template": {"version": "1.0.2"},
+        }
+        result = mt.migrate_102_to_110(manifest, dry_run=True)
+        assert "agents" in result, "Migration should add agents[]"
+        assert "workflows" in result, "Migration should add workflows[]"
+        assert isinstance(result["agents"], list), "agents should be a list"
+        assert isinstance(result["workflows"], list), "workflows should be a list"
+        assert result["template"]["version"] == "1.1.0"

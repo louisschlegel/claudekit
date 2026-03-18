@@ -153,3 +153,16 @@ TESTS: all passing
 REVIEW: APPROVED
 LEARNING.MD: updated (via auto-learn.py)
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "bug": "...",
+  "root_cause": "...",
+  "fix_type": "patch|workaround",
+  "files_modified": [],
+  "tests_added": 0,
+  "regression_risk": "LOW|MEDIUM|HIGH",
+  "branch": "..."
+}
+```

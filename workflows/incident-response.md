@@ -306,3 +306,15 @@ POST-MORTEM:
 
 LEARNING.MD: updated
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "incident_id": "...",
+  "severity": "P1|P2",
+  "duration_minutes": 0,
+  "root_cause": "...",
+  "mitigated": false,
+  "postmortem_path": "..."
+}
+```

@@ -149,7 +149,9 @@ class TestMakeUserPromptSubmit:
     REQUIRED_INTENTS = [
         "feature", "bugfix", "hotfix", "release", "security-audit",
         "db-migration", "incident", "perf-test", "publish", "api-design",
-        "refactor", "onboard",
+        "refactor", "onboard", "ab-test", "data-quality", "llm-eval",
+        "spec-to-project", "code-review", "monitoring-setup",
+        "cost-optimization", "dependency-audit", "update-deps",
     ]
 
     def test_contains_all_required_intents(self, gen, web_manifest):

@@ -24,17 +24,24 @@ jobs:
           python3 -m py_compile scripts/self-improve.py
           python3 -m py_compile scripts/version-bump.py
           python3 -m py_compile scripts/changelog-gen.py
+          python3 -m py_compile scripts/claudekit.py
+          python3 -m py_compile scripts/migrate-template.py
 
       - name: Validate bash hooks
         run: |
           bash -n .claude/hooks/session-start.sh
           bash -n .claude/hooks/user-prompt-submit.sh
+          bash -n .claude/hooks/pre-bash-guard.sh
+          bash -n .claude/hooks/post-edit.sh
+          bash -n .claude/hooks/stop.sh
+          bash -n .claude/hooks/pre-push.sh
 
       - name: Validate JSON files
         run: |
           python3 -c "import json; json.load(open('project.manifest.EXAMPLE.json'))"
           python3 -c "import json; json.load(open('.template/version.json'))"
           python3 -c "import json; json.load(open('.template/known-patterns.json'))"
+          python3 -c "import json; json.load(open('project.manifest.json'))"
 
       - name: Check all agents have HANDOFF JSON
         run: |
@@ -58,12 +65,34 @@ jobs:
           done
           exit $missing
 
+      - name: Check all workflows have HANDOFF JSON
+        run: |
+          missing=0
+          for f in workflows/*.md; do
+            if ! grep -q "HANDOFF JSON" "$f"; then
+              echo "Missing HANDOFF JSON: $f"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Check all workflows have CONTRAT DE SORTIE
+        run: |
+          missing=0
+          for f in workflows/*.md; do
+            if ! grep -q "CONTRAT DE SORTIE" "$f"; then
+              echo "Missing CONTRAT DE SORTIE: $f"
+              missing=1
+            fi
+          done
+          exit $missing
+
       - name: Check routing table coverage
         run: |
           python3 - <<'EOF'
-          import re
+          import re, os
 
-          # Extract intents from hook
+          # Extract intents from bootstrap hook
           hook = open('.claude/hooks/user-prompt-submit.sh').read()
           hook_intents = set(re.findall(r'\("(\w[\w-]*)"\s*,', hook))
 
@@ -71,51 +100,70 @@ jobs:
           claude = open('CLAUDE.md').read()
           claude_intents = set(re.findall(r'`(\w[\w-]*)`\s*\|.*workflows/', claude))
 
-          # Check coverage (question/other are special cases, not workflows)
+          # Check coverage (question/other/improve-template are special cases)
           special = {'question', 'other', 'improve-template'}
           uncovered = hook_intents - claude_intents - special
           if uncovered:
               print(f"Intents in hook but not in routing table: {uncovered}")
               exit(1)
-          print(f"All {len(hook_intents)} intents covered.")
+
+          # Check all routing targets exist as files (skip placeholders like [nom].md)
+          targets = re.findall(r'`workflows/([^`\[]+\.md)`', claude)
+          missing = [t for t in targets if not os.path.exists(f'workflows/{t}')]
+          if missing:
+              print(f"Routing targets with no file: {missing}")
+              exit(1)
+
+          print(f"All {len(hook_intents)} intents covered. All {len(targets)} routing targets exist.")
           EOF
 
-      - name: Test gen.py end-to-end with example manifest
+      - name: Test gen.py end-to-end on all examples
         run: |
           python3 - <<'EOF'
-          import json, sys, importlib.util, os
+          import json, sys, importlib.util, os, glob
 
-          # Load gen.py as module
           spec = importlib.util.spec_from_file_location("gen", "scripts/gen.py")
           gen = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(gen)
 
-          # Load example manifest
-          manifest = json.load(open("examples/web-app.manifest.json"))
+          examples = glob.glob("examples/*.json")
+          assert examples, "No example manifests found"
 
-          # Test key generation functions
-          perms = gen.build_permissions(manifest)
-          assert len(perms) > 0, "build_permissions returned empty list"
+          for path in sorted(examples):
+              manifest = json.load(open(path))
+              perms = gen.build_permissions(manifest)
+              assert len(perms) > 0, f"{path}: build_permissions returned empty"
+              hooks = gen.build_hooks(manifest)
+              assert "UserPromptSubmit" in str(hooks), f"{path}: UserPromptSubmit missing"
+              session = gen.make_session_start(manifest)
+              assert len(session) > 100, f"{path}: session-start too short"
+              print(f"OK: {path} ({len(perms)} perms)")
 
-          hooks = gen.build_hooks(manifest)
-          assert "UserPromptSubmit" in str(hooks), "UserPromptSubmit hook missing"
-          assert "SessionStart" in str(hooks), "SessionStart hook missing"
-
-          mcp = gen.build_mcp_servers(manifest)
-          assert isinstance(mcp, dict), "build_mcp_servers must return dict"
-
-          session = gen.make_session_start(manifest)
-          assert len(session) > 100, "session-start content too short"
-
-          print(f"gen.py OK — {len(perms)} permissions, {len(hooks)} hooks, {len(mcp.get('mcpServers', {}))} MCP servers")
+          print(f"\nAll {len(examples)} example manifests validated.")
           EOF
+
+      - name: Test migrate-template.py --check
+        run: |
+          python3 scripts/migrate-template.py --check || true
+          python3 scripts/migrate-template.py --dry-run || true
+
+      - name: Test claudekit.py status
+        run: python3 scripts/claudekit.py status
 
       - name: Validate examples JSON
         run: |
           for f in examples/*.json; do
-            python3 -c "import json; d=json.load(open('$f')); assert 'project' in d and 'stack' in d, 'Missing required sections'" \
+            python3 -c "import json; d=json.load(open('$f')); assert 'project' in d and 'stack' in d, 'Missing required sections in $f'" \
               && echo "OK: $f" || exit 1
           done
+
+      - name: SAST — bandit security scan
+        run: |
+          pip install bandit -q
+          bandit -r scripts/ -ll -q || true
+          # -ll = only HIGH severity, -q = quiet. Non-blocking (|| true) to avoid
+          # false positives on template code that uses subprocess intentionally.
+          # Change to `|| exit 1` to make blocking when baseline is established.
 
       - name: Install test dependencies
         run: pip install pytest

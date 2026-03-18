@@ -17,6 +17,7 @@ import sys
 from collections import Counter
 from datetime import date
 from pathlib import Path
+import string
 
 # ─── Chemins ─────────────────────────────────────────────────────────────────
 
@@ -454,6 +455,142 @@ def show_stats() -> None:
     print("=" * 50)
 
 
+# ─── --deduplicate ────────────────────────────────────────────────────────────
+
+def _normalize(text: str) -> str:
+    """Normalise un texte pour la comparaison : lowercase + suppression ponctuation + strip."""
+    text = text.lower().strip()
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    return " ".join(text.split())
+
+
+def deduplicate_entries(learning_file: Path | None = None) -> int:
+    """
+    Lit learning.md, détecte les entrées en double dans chaque section (même texte normalisé),
+    garde la plus récente de chaque doublon, réécrit le fichier et retourne le nombre de
+    suppressions.
+
+    Une « entrée » est un bloc commençant par une ligne ### et se terminant avant la prochaine
+    ligne ### ou avant un header de section (##).
+    """
+    target = learning_file or LEARNING_MD
+
+    if not target.exists():
+        sys.exit(f"[auto-learn] learning.md introuvable : {target}")
+
+    content = target.read_text(encoding="utf-8")
+    lines = content.splitlines(keepends=True)
+
+    # ── Découper le contenu en blocs ──────────────────────────────────────────
+    # Chaque bloc est soit un "header" (## ou titre de niveau 1), soit une "entry" (### …),
+    # soit du contenu "flottant" (lignes hors entrée).
+
+    class Block:
+        __slots__ = ("kind", "section", "lines", "key")
+
+        def __init__(self, kind: str, section: str, raw_lines: list[str]):
+            self.kind = kind          # "header" | "entry" | "float"
+            self.section = section    # clé de section courante
+            self.lines = raw_lines    # lignes brutes
+            self.key = _normalize("".join(raw_lines))  # clé de dédup
+
+    blocks: list[Block] = []
+    current_section = "__preamble__"
+    current_kind: str | None = None
+    current_lines: list[str] = []
+
+    def flush(kind: str) -> None:
+        if current_lines:
+            blocks.append(Block(kind, current_section, list(current_lines)))
+        current_lines.clear()
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Détection d'un header de section (## …)
+        is_section_header = stripped.startswith("## ") or stripped == "##"
+        # Détection d'une entrée (### …)
+        is_entry_header = stripped.startswith("### ") or stripped == "###"
+
+        if is_section_header:
+            # Flush du bloc précédent
+            if current_kind and current_lines:
+                flush(current_kind)
+            current_kind = "header"
+            current_lines.clear()
+            current_lines.append(line)
+            # Mettre à jour la section courante
+            for key, header in SECTION_HEADERS.items():
+                if stripped == header:
+                    current_section = key
+                    break
+            flush("header")
+            current_kind = None
+
+        elif is_entry_header:
+            if current_kind and current_lines:
+                flush(current_kind)
+            current_kind = "entry"
+            current_lines.clear()
+            current_lines.append(line)
+
+        else:
+            if current_kind == "entry":
+                # Les lignes non-header appartiennent à l'entrée en cours
+                current_lines.append(line)
+            else:
+                # Contenu flottant (lignes vides, commentaires, etc. hors entrée)
+                if current_kind == "float":
+                    current_lines.append(line)
+                else:
+                    if current_kind and current_lines:
+                        flush(current_kind)
+                    current_kind = "float"
+                    current_lines.clear()
+                    current_lines.append(line)
+
+    # Flush final
+    if current_kind and current_lines:
+        flush(current_kind)
+
+    # ── Déduplication par section ─────────────────────────────────────────────
+    # Parcours en ordre inverse pour garder la plus récente (dernière occurrence).
+    seen: dict[str, set[str]] = {}  # section → ensemble de clés normalisées vues
+    removed = 0
+    kept_flags: list[bool] = []
+
+    for block in reversed(blocks):
+        if block.kind != "entry":
+            kept_flags.append(True)
+            continue
+
+        section_seen = seen.setdefault(block.section, set())
+        if block.key in section_seen:
+            kept_flags.append(False)
+            removed += 1
+        else:
+            section_seen.add(block.key)
+            kept_flags.append(True)
+
+    # Remettre dans l'ordre original
+    kept_flags.reverse()
+
+    # ── Reconstruction du fichier ─────────────────────────────────────────────
+    new_lines: list[str] = []
+    for block, keep in zip(blocks, kept_flags):
+        if keep:
+            new_lines.extend(block.lines)
+
+    target.write_text("".join(new_lines), encoding="utf-8")
+
+    if removed > 0:
+        print(f"[auto-learn] {removed} entrée(s) dupliquée(s) supprimée(s) de learning.md")
+    else:
+        print("[auto-learn] Aucun doublon détecté dans learning.md")
+
+    return removed
+
+
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -483,6 +620,11 @@ def main() -> None:
         action="store_true",
         help="Afficher les statistiques de learning.md",
     )
+    parser.add_argument(
+        "--deduplicate",
+        action="store_true",
+        help="Supprimer les entrées en double dans learning.md (garde la plus récente)",
+    )
 
     args = parser.parse_args()
 
@@ -492,6 +634,10 @@ def main() -> None:
 
     if args.show_stats:
         show_stats()
+        return
+
+    if args.deduplicate:
+        deduplicate_entries()
         return
 
     if not args.from_agent:

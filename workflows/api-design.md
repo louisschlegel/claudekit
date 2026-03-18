@@ -370,3 +370,15 @@ DOCUMENTATION: generated at [url/path]
 
 IMPLEMENTATION STATUS: spec only / in progress / complete
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "api_name": "...",
+  "spec_path": "...",
+  "endpoints": 0,
+  "breaking_changes": false,
+  "mock_ready": false,
+  "review": "approved|pending"
+}
+```

@@ -40,28 +40,20 @@
     "extra_bash": ["stripe", "ffmpeg"],
     "web_domains": ["api.stripe.com", "api.openai.com"]
   },
-  "agents": {
-    "architect": true,
-    "reviewer": true,
-    "tester": true,
-    "security-auditor": true,
-    "debug-detective": true,
-    "deployer": false,
-    "explorer": true,
-    "doc-writer": true,
-    "performance-analyst": false,
-    "release-manager": true,
-    "data-engineer": false,
-    "ml-engineer": false,
-    "devops-engineer": false,
-    "template-improver": true
-  },
+  "agents": [
+    "architect", "reviewer", "tester", "security-auditor", "debug-detective",
+    "deployer", "explorer", "doc-writer", "performance-analyst", "release-manager",
+    "cost-analyst", "spec-reader", "devops-engineer", "template-improver"
+  ],
+  "workflows": [
+    "feature", "bugfix", "hotfix", "release", "security-audit",
+    "dependency-update", "dependency-audit", "refactor", "onboard", "self-improve",
+    "db-migration", "incident-response", "api-design", "code-review",
+    "monitoring-setup", "cost-optimization", "spec-to-project"
+  ],
   "automation": {
-    "auto_review_before_commit": false,
-    "auto_test_after_feature": true,
-    "auto_security_audit_before_release": true,
-    "auto_changelog_on_release": true,
-    "self_improve_every_n_sessions": 5
+    "self_improve_every_n_sessions": 5,
+    "learning_file": "learning.md"
   },
   "security": {
     "scan_on_push": true,
@@ -93,9 +85,8 @@
     "baseline_score": 0.72
   },
   "template": {
-    "version": "1.0.0",
-    "auto_improve": true,
-    "improve_threshold_sessions": 5
+    "version": "1.1.0",
+    "source": "https://github.com/louisschlegel/claudekit"
   },
   "context": {
     "learning_file": "learning.md",

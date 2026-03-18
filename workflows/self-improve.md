@@ -130,3 +130,14 @@ TEMPLATE HEALTH:
 
 NEXT AUTO-IMPROVE: dans [N] sessions
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "version_from": "...",
+  "version_to": "...",
+  "improvements_applied": 0,
+  "type": "AUTO|APPROVAL|PR",
+  "learning_entries_added": 0
+}
+```

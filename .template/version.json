@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.1.0",
   "created": "2026-03-18T00:00:00Z",
   "improvement_history": [
     {
@@ -13,6 +13,13 @@
       "to": "1.0.2",
       "date": "2026-03-18T16:01:27.587852+00:00",
       "type": "patch"
+    },
+    {
+      "from": "1.0.2",
+      "to": "1.1.0",
+      "date": "2026-03-18T18:00:00.000000+00:00",
+      "type": "minor",
+      "summary": "cost-analyst agent, a/b-test + data-quality + llm-eval workflows, gen.py --dry-run/--diff, Pulumi/Deno2/Nx, claudekit CLI, auto-learn deduplication"
     }
   ]
 }

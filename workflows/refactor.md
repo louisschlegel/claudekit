@@ -153,3 +153,15 @@ LEARNING.MD: updated (via auto-learn.py)
 
 BEHAVIOR CHANGE: none (verified)
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "scope": "...",
+  "files_modified": [],
+  "tests_before": 0,
+  "tests_after": 0,
+  "coverage_delta_pct": 0,
+  "breaking_changes": false
+}
+```

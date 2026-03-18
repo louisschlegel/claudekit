@@ -142,3 +142,14 @@ PENDING:
 
 LEARNING.MD: updated (via auto-learn.py)
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "scope": "...",
+  "findings": {"critical": 0, "high": 0, "medium": 0, "low": 0},
+  "secrets_found": false,
+  "deploy_gate": "pass|fail",
+  "report_path": "..."
+}
+```
