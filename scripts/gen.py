@@ -648,6 +648,7 @@ INTENT_RULES = [
     ("ab-test",          ["a/b test", "feature flag", "split test", "rollout progressif", "expérimentation", "statistical significance"]),
     ("data-quality",     ["qualité des données", "data quality", "great expectations", "données corrompues", "anomalie de données"]),
     ("llm-eval",         ["évalue le rag", "llm eval", "ragas", "qualité des réponses", "hallucination", "benchmark llm", "rag evaluation"]),
+    ("spec-to-project",  ["cahier des charges", "cahier de charges", "analyse cette spec", "voici les specs", "voici mon brief", "prd", "product requirement", "génère le projet depuis", "setup depuis spec", "j'ai un document de spec", "analyse ce document"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]

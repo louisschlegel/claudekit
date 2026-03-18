@@ -61,8 +61,8 @@ Questions **une par une** :
 13. MCP servers : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`
     *(gmail, google-calendar, canva = intégrations natives Claude.ai, pas de config nécessaire)*
 14. Guards : lint ? type-check ? test auto ? migrations ? i18n ?
-15. Workflows à activer : `feature`, `bugfix`, `hotfix`, `release`, `security-audit`, `dependency-update`, `refactor`, `onboard`, `self-improve`, `db-migration`, `incident-response`, `performance-baseline`, `publish-package`, `api-design`, `a-b-test`, `data-quality`, `llm-eval`
-16. Agents à activer : `architect`, `reviewer`, `tester`, `deployer`, `explorer`, `security-auditor`, `debug-detective`, `doc-writer`, `performance-analyst`, `release-manager`, `data-engineer`, `ml-engineer`, `devops-engineer`, `cost-analyst`, `template-improver`
+15. Workflows à activer : `feature`, `bugfix`, `hotfix`, `release`, `security-audit`, `dependency-update`, `refactor`, `onboard`, `self-improve`, `db-migration`, `incident-response`, `performance-baseline`, `publish-package`, `api-design`, `a-b-test`, `data-quality`, `llm-eval`, `spec-to-project`
+16. Agents à activer : `architect`, `reviewer`, `tester`, `deployer`, `explorer`, `security-auditor`, `debug-detective`, `doc-writer`, `performance-analyst`, `release-manager`, `data-engineer`, `ml-engineer`, `devops-engineer`, `cost-analyst`, `spec-reader`, `template-improver`
 17. Type de projet (pour personnalisation) : `web-app`, `api`, `mobile`, `desktop`, `data-pipeline`, `ml`, `library`, `monorepo`, `iac`, `cli`
 18. Auto-amélioration : toutes les N sessions ? (défaut: 10)
 19. Fichier de mémoire (défaut: `learning.md`)
@@ -100,6 +100,7 @@ Le hook `user-prompt-submit.sh` classifie l'intention et l'injecte en contexte.
 | `ab-test` | → `workflows/a-b-test.md` |
 | `data-quality` | → `workflows/data-quality.md` |
 | `llm-eval` | → `workflows/llm-eval.md` |
+| `spec-to-project` | → `workflows/spec-to-project.md` |
 | `question` | → réponse directe, pas de workflow |
 | `other` | → demande de clarification, puis route |
 
@@ -152,6 +153,7 @@ Définis dans `.claude/agents/`. Lis le fichier correspondant avant d'invoquer.
 | `ml-engineer` | `.claude/agents/ml-engineer.md` | Training, MLOps, serving, LLMs |
 | `devops-engineer` | `.claude/agents/devops-engineer.md` | CI/CD, IaC, monitoring |
 | `cost-analyst` | `.claude/agents/cost-analyst.md` | Optimisation coûts cloud + LLM |
+| `spec-reader` | `.claude/agents/spec-reader.md` | Parse cahier des charges → manifest + backlog |
 | `template-improver` | `.claude/agents/template-improver.md` | Auto-amélioration template |
 
 ---

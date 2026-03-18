@@ -38,7 +38,7 @@ Claude détecte le manifest vide → lance le setup automatiquement → génère
 
 ```
 ton-projet/
-├── CLAUDE.md                    # Orchestrateur — routing 18 intents
+├── CLAUDE.md                    # Orchestrateur — routing 19 intents
 ├── project.manifest.json        # Config générée lors du setup
 ├── learning.md                  # Mémoire institutionnelle (auto-alimentée)
 ├── .mcp.json                    # Serveurs MCP configurés
@@ -50,7 +50,7 @@ ton-projet/
 │       ├── pre-bash-guard.sh    # Blocage commandes destructives
 │       ├── post-edit.sh         # Guards qualité (lint, type-check, migrations)
 │       └── stop.sh              # Auto-learning en fin de session
-└── ...                          # Tes 15 agents et 17 workflows
+└── ...                          # Tes 16 agents et 18 workflows
 ```
 
 ---
@@ -59,7 +59,7 @@ ton-projet/
 
 ```
 template/
-├── CLAUDE.md                        # Orchestrateur — routing table (18 intents) + règles
+├── CLAUDE.md                        # Orchestrateur — routing table (19 intents) + règles
 ├── project.manifest.json            # {} → déclenche setup | rempli → contexte
 ├── project.manifest.EXAMPLE.json   # Référence complète du schema
 ├── learning.md.template             # Template pour la mémoire persistante
@@ -83,7 +83,7 @@ template/
 │   ├── hooks/
 │   │   ├── session-start.sh         # Bootstrap (40+ détecteurs stack + 7 signaux)
 │   │   └── user-prompt-submit.sh    # Bootstrap (15 intents + 8 patterns injection)
-│   └── agents/                      # 15 agents spécialisés
+│   └── agents/                      # 16 agents spécialisés
 │       ├── architect.md             # Conception + ADR + JSON handoff
 │       ├── reviewer.md              # Code review (BLOCKER/WARNING/SUGGESTION)
 │       ├── tester.md                # Tests exhaustifs
@@ -95,12 +95,13 @@ template/
 │       ├── performance-analyst.md   # Profiling + optimisation
 │       ├── release-manager.md       # Orchestration release + changelog
 │       ├── cost-analyst.md          # Optimisation coûts cloud (AWS/GCP/Azure) + LLM tokens
+│       ├── spec-reader.md           # Parse cahier des charges → manifest + backlog + issues
 │       ├── data-engineer.md         # Pipelines data, dbt, Airflow, streaming
 │       ├── ml-engineer.md           # MLOps : train → serve → monitor
 │       ├── devops-engineer.md       # Infra, CI/CD, observabilité, résilience
 │       └── template-improver.md     # Meta-agent : améliore le template
 │
-├── workflows/                       # 17 workflows end-to-end
+├── workflows/                       # 18 workflows end-to-end
 │   ├── feature.md                   # Feature branch → merge + auto-learn
 │   ├── bugfix.md                    # Bug → root cause → test → fix
 │   ├── hotfix.md                    # Correctif urgent prod (express)
@@ -117,7 +118,8 @@ template/
 │   ├── api-design.md                # API-first : spec → review → mock → implem
 │   ├── a-b-test.md                  # Power analysis → feature flags → significance → ship/kill
 │   ├── data-quality.md              # Great Expectations + dbt + ISO 8000 score + SLA
-│   └── llm-eval.md                  # RAGAS + hallucination detection + BLEU/ROUGE + deploy gate
+│   ├── llm-eval.md                  # RAGAS + hallucination detection + BLEU/ROUGE + deploy gate
+│   └── spec-to-project.md           # Cahier des charges → manifest + backlog + arch + GitHub issues
 │
 └── .template/
     ├── version.json                 # Version du template + historique
@@ -133,7 +135,7 @@ template/
 
 Chaque message est analysé avant d'arriver à Claude :
 - **Injection detection** : bloque 8 patterns de prompt injection
-- **Intent classification** : 18 intents détectés automatiquement
+- **Intent classification** : 19 intents détectés automatiquement
 
 | Intent | Mots-clés déclencheurs |
 |--------|----------------------|
@@ -146,6 +148,7 @@ Chaque message est analysé avant d'arriver à Claude :
 | `ab-test` | a/b test, feature flag, expérience, power analysis, significance |
 | `data-quality` | qualité des données, great expectations, dbt test, validation données |
 | `llm-eval` | évalue le rag, llm eval, ragas, hallucination, benchmark llm |
+| `spec-to-project` | cahier des charges, voici les specs, voici mon brief, PRD, analyse ce document |
 | `feature` | implémente, ajoute, nouvelle feature |
 | `bugfix` | bug, crash, erreur, fixe, regression |
 | `release` | release, prépare une version, tag v |
@@ -210,6 +213,7 @@ Tous les agents ont un **HANDOFF JSON structuré** pour passage de contexte, et 
 | `performance-analyst` | Profiling + optimisation | — |
 | `release-manager` | Orchestration release + changelog | CHANGELOG |
 | `cost-analyst` | Optimisation coûts cloud (AWS/GCP/Azure) + LLM tokens | — |
+| `spec-reader` | Parse cahier des charges → manifest + backlog + issues GitHub | project.manifest.json, learning.md, backlog.md |
 | `data-engineer` | Pipelines data, dbt, Airflow, streaming | dbt models, DAGs |
 | `ml-engineer` | MLOps : framing → train → serve → monitor | Scripts ML |
 | `devops-engineer` | Infra, CI/CD, observabilité, résilience | Dockerfile, CI, IaC |
@@ -238,6 +242,7 @@ Tous les agents ont un **HANDOFF JSON structuré** pour passage de contexte, et 
 | `a-b-test.md` | `ab-test` | ml-engineer → tester → reviewer |
 | `data-quality.md` | `data-quality` | data-engineer → tester → reviewer |
 | `llm-eval.md` | `llm-eval` | ml-engineer → tester → reviewer |
+| `spec-to-project.md` | `spec-to-project` | spec-reader → architect → doc-writer |
 
 ---
 
@@ -264,7 +269,7 @@ Copier le manifest le plus proche de ton projet, le renommer `project.manifest.j
 |---------|-------------------|
 | `.claude/settings.local.json` | Permissions Bash adaptées au stack |
 | `.claude/hooks/session-start.sh` | Contexte + 7 signaux opérationnels |
-| `.claude/hooks/user-prompt-submit.sh` | 18 intents + injection detection |
+| `.claude/hooks/user-prompt-submit.sh` | 19 intents + injection detection |
 | `.claude/hooks/pre-bash-guard.sh` | Blocage commandes destructives |
 | `.claude/hooks/post-edit.sh` | Guards qualité |
 | `.claude/hooks/stop.sh` | Auto-learning async |
