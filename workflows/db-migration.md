@@ -249,3 +249,14 @@ GATES:
 DEPLOYMENT ORDER: migration-first / code-first / phased
 PHASES REMAINING: [si migration multi-phases : phases 2 et 3 à planifier]
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "migration": "...",
+  "direction": "up|down|both",
+  "zero_downtime": true,
+  "rollback_tested": false,
+  "applied_envs": []
+}
+```

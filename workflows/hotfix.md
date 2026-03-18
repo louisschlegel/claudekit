@@ -149,3 +149,15 @@ MERGE BACK: main ✓ | develop ✓ | tagged: v[X.Y.Z]
 REGRESSION TEST: pending (to be written in next session)
 POST-MORTEM: learning.md updated
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "incident": "...",
+  "severity": "P1|P2",
+  "fix": "...",
+  "deployed": false,
+  "rollback_plan": "...",
+  "postmortem_needed": false
+}
+```

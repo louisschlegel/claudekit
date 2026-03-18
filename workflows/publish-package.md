@@ -379,3 +379,14 @@ POST-PUBLICATION:
 
 TAG: v[version] created and pushed
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "package": "...",
+  "version": "...",
+  "registry": "npm|pypi|crates.io",
+  "published": false,
+  "signed": false
+}
+```

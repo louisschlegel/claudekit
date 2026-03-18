@@ -153,3 +153,15 @@ ARTIFACTS:
   - GitHub Release: [url si applicable]
   - LEARNING.MD: updated (via auto-learn.py)
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "version": "...",
+  "type": "patch|minor|major",
+  "deployed": false,
+  "changelog_updated": true,
+  "tag": "...",
+  "blockers": []
+}
+```

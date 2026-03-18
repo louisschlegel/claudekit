@@ -137,3 +137,17 @@ DOCS: updated / not applicable
 BRANCH: merged / pending
 LEARNING.MD: updated (via auto-learn.py)
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "feature": "...",
+  "status": "complete|blocked",
+  "files_modified": [],
+  "tests_added": 0,
+  "coverage_pct": 0,
+  "review": "approved|pending",
+  "branch": "...",
+  "learning_updated": false
+}
+```

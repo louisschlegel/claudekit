@@ -120,3 +120,15 @@ NEXT STEPS:
   1. [action recommandée]
   2. [action recommandée]
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "project": "...",
+  "type": "...",
+  "stack_detected": [],
+  "manifest_written": false,
+  "gen_py_run": false,
+  "learning_md_created": false
+}
+```

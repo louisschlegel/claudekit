@@ -25,20 +25,54 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
-      - name: Generate changelog for this version
+      - name: Full validation before release
         run: |
-          python3 scripts/changelog-gen.py --version "${{ steps.version.outputs.version }}" > release-notes.md 2>/dev/null || echo "See CHANGELOG.md for details." > release-notes.md
-          cat release-notes.md
-
-      - name: Run validation
-        run: |
+          # Compile all Python scripts
           python3 -m py_compile scripts/gen.py
           python3 -m py_compile scripts/auto-learn.py
           python3 -m py_compile scripts/self-improve.py
           python3 -m py_compile scripts/version-bump.py
           python3 -m py_compile scripts/changelog-gen.py
+          python3 -m py_compile scripts/claudekit.py
+          python3 -m py_compile scripts/migrate-template.py
+          # Validate all bash hooks
           bash -n .claude/hooks/session-start.sh
           bash -n .claude/hooks/user-prompt-submit.sh
+          bash -n .claude/hooks/pre-bash-guard.sh
+          bash -n .claude/hooks/post-edit.sh
+          bash -n .claude/hooks/stop.sh
+          bash -n .claude/hooks/pre-push.sh
+          # Validate all JSON
+          python3 -c "import json, glob; [json.load(open(f)) for f in glob.glob('examples/*.json') + ['project.manifest.EXAMPLE.json', '.template/version.json']]"
+          echo "All validations passed"
+
+      - name: Run tests
+        run: |
+          pip install pytest -q
+          pytest tests/ -v --tb=short
+
+      - name: Verify version consistency
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST_VERSION=$(python3 -c "import json; print(json.load(open('project.manifest.json'))['template']['version'])")
+          TEMPLATE_VERSION=$(python3 -c "import json; print(json.load(open('.template/version.json'))['version'])")
+
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "ERROR: tag=$TAG_VERSION but manifest.template.version=$MANIFEST_VERSION"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$TEMPLATE_VERSION" ]; then
+            echo "ERROR: tag=$TAG_VERSION but .template/version.json=$TEMPLATE_VERSION"
+            exit 1
+          fi
+          echo "Version consistency OK: $TAG_VERSION"
+
+      - name: Generate changelog for this version
+        run: |
+          python3 scripts/changelog-gen.py --version "${{ steps.version.outputs.version }}" > release-notes.md 2>/dev/null \
+            || grep -A50 "## \[${{ steps.version.outputs.version }}\]" CHANGELOG.md | tail -n +1 | sed '/^## \[/{ 2q }' > release-notes.md \
+            || echo "See CHANGELOG.md for details." > release-notes.md
+          cat release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

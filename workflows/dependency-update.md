@@ -172,3 +172,13 @@ REVIEW: APPROVED
 COMMIT: [hash]
 LEARNING.MD: updated / not needed
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "packages_updated": 0,
+  "breaking_changes": [],
+  "security_fixes": 0,
+  "pr_created": false
+}
+```

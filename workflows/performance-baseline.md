@@ -347,3 +347,15 @@ DEPLOY: unblocked / blocked — [raison]
 
 PERFORMANCE ANALYST: [résumé des recommandations si régression]
 ```
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "baseline_established": false,
+  "p95_ms": 0,
+  "rps": 0,
+  "bottleneck": "...",
+  "optimizations_applied": [],
+  "improvement_pct": 0
+}
+```
