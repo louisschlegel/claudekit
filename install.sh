@@ -59,8 +59,11 @@ copy_files() {
   cp "$src/scripts/self-improve.py" "$dst/scripts/self-improve.py"
   cp "$src/scripts/version-bump.py" "$dst/scripts/version-bump.py"
   cp "$src/scripts/changelog-gen.py" "$dst/scripts/changelog-gen.py"
+  cp "$src/scripts/claudekit.py" "$dst/scripts/claudekit.py"
+  cp "$src/scripts/migrate-template.py" "$dst/scripts/migrate-template.py"
   cp "$src/.claude/hooks/session-start.sh" "$dst/.claude/hooks/session-start.sh"
   cp "$src/.claude/hooks/user-prompt-submit.sh" "$dst/.claude/hooks/user-prompt-submit.sh"
+  cp "$src/.claude/hooks/pre-push.sh" "$dst/.claude/hooks/pre-push.sh"
   cp "$src/CLAUDE.md" "$dst/CLAUDE.md"
   cp "$src/learning.md.template" "$dst/learning.md.template"
 
@@ -74,7 +77,9 @@ copy_files() {
 
   chmod +x "$dst/.claude/hooks/session-start.sh"
   chmod +x "$dst/.claude/hooks/user-prompt-submit.sh"
+  chmod +x "$dst/.claude/hooks/pre-push.sh"
   chmod +x "$dst/scripts/gen.py"
+  chmod +x "$dst/scripts/claudekit.py"
 }
 
 if [ "$IS_LOCAL" = true ]; then
