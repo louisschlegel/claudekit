@@ -1,0 +1,73 @@
+{
+  "project": {
+    "name": "my-ml-project",
+    "description": "Modèle de classification avec serving FastAPI et monitoring de dérive",
+    "type": "ml",
+    "language": "en"
+  },
+  "stack": {
+    "languages": ["python"],
+    "frameworks": ["fastapi", "pytorch", "sklearn"],
+    "databases": ["postgresql", "redis"],
+    "runtime": "python",
+    "testing": ["pytest"],
+    "linting": ["ruff"],
+    "package_managers": ["uv"],
+    "monorepo_tools": [],
+    "data_tools": ["mlflow", "dvc", "wandb"],
+    "serverless": [],
+    "desktop_frameworks": []
+  },
+  "workflow": {
+    "git_strategy": "feature-branch",
+    "ci_cd": "github-actions",
+    "deploy_target": "docker",
+    "auto_deploy": false,
+    "commit_language": "en",
+    "deploy_command": "docker compose up -d --build",
+    "environments": ["staging", "production"],
+    "health_check_url": "http://localhost:8000/health",
+    "smoke_tests": ["curl -X POST $DEPLOY_URL/predict -d '{\"features\": []}'"],
+    "github_releases": true
+  },
+  "ml": {
+    "task_type": "classification",
+    "frameworks": ["pytorch", "sklearn"],
+    "experiment_tracking": "mlflow",
+    "data_versioning": "dvc",
+    "serving": "fastapi",
+    "vector_db": null,
+    "target_latency_ms": 100,
+    "target_metric": "f1",
+    "baseline_score": 0.0
+  },
+  "mcp_servers": ["github", "postgres", "filesystem"],
+  "guards": {
+    "lint": true,
+    "type_check": false,
+    "test_on_edit": false,
+    "migration_check": false,
+    "i18n_check": false,
+    "secret_scan": true
+  },
+  "agents": [
+    "architect", "reviewer", "tester", "deployer", "explorer",
+    "security-auditor", "debug-detective", "doc-writer",
+    "ml-engineer", "data-engineer", "devops-engineer",
+    "performance-analyst", "release-manager", "template-improver"
+  ],
+  "workflows": [
+    "feature", "bugfix", "hotfix", "release", "security-audit",
+    "dependency-update", "refactor", "onboard", "self-improve",
+    "performance-baseline", "incident-response"
+  ],
+  "automation": {
+    "self_improve_every_n_sessions": 10,
+    "learning_file": "learning.md"
+  },
+  "security": {
+    "secret_scan": true,
+    "dependency_audit": true,
+    "owasp_check": false
+  }
+}

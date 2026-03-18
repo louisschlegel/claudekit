@@ -1,0 +1,61 @@
+{
+  "project": {
+    "name": "my-api",
+    "description": "REST API avec authentification JWT et rate limiting",
+    "type": "api",
+    "language": "en"
+  },
+  "stack": {
+    "languages": ["python"],
+    "frameworks": ["fastapi", "celery"],
+    "databases": ["postgresql", "redis"],
+    "runtime": "python",
+    "testing": ["pytest"],
+    "linting": ["ruff"],
+    "package_managers": ["uv"],
+    "monorepo_tools": [],
+    "data_tools": [],
+    "serverless": [],
+    "desktop_frameworks": []
+  },
+  "workflow": {
+    "git_strategy": "feature-branch",
+    "ci_cd": "github-actions",
+    "deploy_target": "docker",
+    "auto_deploy": false,
+    "commit_language": "en",
+    "deploy_command": "docker compose up -d --build",
+    "environments": ["staging", "production"],
+    "health_check_url": "http://localhost:8000/health",
+    "smoke_tests": ["curl $DEPLOY_URL/health"],
+    "github_releases": true
+  },
+  "mcp_servers": ["github", "postgres"],
+  "guards": {
+    "lint": true,
+    "type_check": true,
+    "test_on_edit": true,
+    "migration_check": true,
+    "i18n_check": false,
+    "secret_scan": true
+  },
+  "agents": [
+    "architect", "reviewer", "tester", "deployer", "explorer",
+    "security-auditor", "debug-detective", "doc-writer",
+    "performance-analyst", "release-manager", "devops-engineer", "template-improver"
+  ],
+  "workflows": [
+    "feature", "bugfix", "hotfix", "release", "security-audit",
+    "dependency-update", "refactor", "onboard", "self-improve",
+    "db-migration", "api-design", "performance-baseline"
+  ],
+  "automation": {
+    "self_improve_every_n_sessions": 10,
+    "learning_file": "learning.md"
+  },
+  "security": {
+    "secret_scan": true,
+    "dependency_audit": true,
+    "owasp_check": true
+  }
+}

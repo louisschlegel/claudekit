@@ -1,0 +1,61 @@
+{
+  "project": {
+    "name": "my-mobile-app",
+    "description": "Application mobile React Native avec backend Node.js",
+    "type": "mobile",
+    "language": "en"
+  },
+  "stack": {
+    "languages": ["typescript"],
+    "frameworks": ["react-native", "expo", "express"],
+    "databases": ["postgresql", "redis"],
+    "runtime": "node",
+    "testing": ["jest", "detox"],
+    "linting": ["eslint"],
+    "package_managers": ["bun"],
+    "monorepo_tools": ["turborepo"],
+    "data_tools": [],
+    "serverless": [],
+    "desktop_frameworks": []
+  },
+  "workflow": {
+    "git_strategy": "gitflow",
+    "ci_cd": "github-actions",
+    "deploy_target": "expo-eas",
+    "auto_deploy": false,
+    "commit_language": "en",
+    "deploy_command": "eas build --platform all",
+    "environments": ["development", "staging", "production"],
+    "health_check_url": "https://api.my-mobile-app.com/health",
+    "smoke_tests": [],
+    "github_releases": true
+  },
+  "mcp_servers": ["github", "postgres"],
+  "guards": {
+    "lint": true,
+    "type_check": true,
+    "test_on_edit": false,
+    "migration_check": false,
+    "i18n_check": true,
+    "secret_scan": true
+  },
+  "agents": [
+    "architect", "reviewer", "tester", "deployer", "explorer",
+    "security-auditor", "debug-detective", "doc-writer",
+    "performance-analyst", "release-manager", "devops-engineer", "template-improver"
+  ],
+  "workflows": [
+    "feature", "bugfix", "hotfix", "release", "security-audit",
+    "dependency-update", "refactor", "onboard", "self-improve",
+    "publish-package", "performance-baseline"
+  ],
+  "automation": {
+    "self_improve_every_n_sessions": 10,
+    "learning_file": "learning.md"
+  },
+  "security": {
+    "secret_scan": true,
+    "dependency_audit": true,
+    "owasp_check": true
+  }
+}

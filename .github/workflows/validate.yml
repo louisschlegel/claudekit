@@ -1,0 +1,81 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python scripts
+        run: |
+          python3 -m py_compile scripts/gen.py
+          python3 -m py_compile scripts/auto-learn.py
+          python3 -m py_compile scripts/self-improve.py
+          python3 -m py_compile scripts/version-bump.py
+          python3 -m py_compile scripts/changelog-gen.py
+
+      - name: Validate bash hooks
+        run: |
+          bash -n .claude/hooks/session-start.sh
+          bash -n .claude/hooks/user-prompt-submit.sh
+
+      - name: Validate JSON files
+        run: |
+          python3 -c "import json; json.load(open('project.manifest.EXAMPLE.json'))"
+          python3 -c "import json; json.load(open('.template/version.json'))"
+          python3 -c "import json; json.load(open('.template/known-patterns.json'))"
+
+      - name: Check all agents have HANDOFF JSON
+        run: |
+          missing=0
+          for f in .claude/agents/*.md; do
+            if ! grep -q "HANDOFF JSON" "$f"; then
+              echo "Missing HANDOFF JSON: $f"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Check all agents have SPÉCIALISATIONS
+        run: |
+          missing=0
+          for f in .claude/agents/*.md; do
+            if ! grep -q "SPÉCIALISATIONS" "$f"; then
+              echo "Missing SPÉCIALISATIONS: $f"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Check routing table coverage
+        run: |
+          python3 - <<'EOF'
+          import re
+
+          # Extract intents from hook
+          hook = open('.claude/hooks/user-prompt-submit.sh').read()
+          hook_intents = set(re.findall(r'\("(\w[\w-]*)"\s*,', hook))
+
+          # Extract intents from CLAUDE.md routing table
+          claude = open('CLAUDE.md').read()
+          claude_intents = set(re.findall(r'`(\w[\w-]*)`\s*\|.*workflows/', claude))
+
+          # Check coverage (question/other are special cases, not workflows)
+          special = {'question', 'other', 'improve-template'}
+          uncovered = hook_intents - claude_intents - special
+          if uncovered:
+              print(f"Intents in hook but not in routing table: {uncovered}")
+              exit(1)
+          print(f"All {len(hook_intents)} intents covered.")
+          EOF

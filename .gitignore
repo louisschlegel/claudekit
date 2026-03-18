@@ -55,3 +55,8 @@ htmlcov/
 *.tmp
 *.bak
 .cache/
+
+# claudekit runtime files (generated, not committed)
+.mcp.json
+.template/improvements.log
+learning.md
