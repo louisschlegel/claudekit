@@ -79,3 +79,40 @@ jobs:
               exit(1)
           print(f"All {len(hook_intents)} intents covered.")
           EOF
+
+      - name: Test gen.py end-to-end with example manifest
+        run: |
+          python3 - <<'EOF'
+          import json, sys, importlib.util, os
+
+          # Load gen.py as module
+          spec = importlib.util.spec_from_file_location("gen", "scripts/gen.py")
+          gen = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(gen)
+
+          # Load example manifest
+          manifest = json.load(open("examples/web-app.manifest.json"))
+
+          # Test key generation functions
+          perms = gen.build_permissions(manifest)
+          assert len(perms) > 0, "build_permissions returned empty list"
+
+          hooks = gen.build_hooks(manifest)
+          assert "UserPromptSubmit" in str(hooks), "UserPromptSubmit hook missing"
+          assert "SessionStart" in str(hooks), "SessionStart hook missing"
+
+          mcp = gen.build_mcp_servers(manifest)
+          assert isinstance(mcp, dict), "build_mcp_servers must return dict"
+
+          session = gen.make_session_start(manifest)
+          assert len(session) > 100, "session-start content too short"
+
+          print(f"gen.py OK — {len(perms)} permissions, {len(hooks)} hooks, {len(mcp.get('mcpServers', {}))} MCP servers")
+          EOF
+
+      - name: Validate examples JSON
+        run: |
+          for f in examples/*.json; do
+            python3 -c "import json; d=json.load(open('$f')); assert 'project' in d and 'stack' in d, 'Missing required sections'" \
+              && echo "OK: $f" || exit 1
+          done

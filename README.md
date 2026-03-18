@@ -333,9 +333,36 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 ---
 
+## Commandes utiles
+
+```bash
+make validate      # CI complète en local (scripts + hooks + JSON + coverage + gen.py end-to-end)
+make check         # Validation rapide avant de pusher
+make gen           # Régénère la config depuis project.manifest.json
+make bump-patch    # Bump version patch (1.0.0 → 1.0.1)
+make changelog     # Met à jour CHANGELOG.md depuis git log
+```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [`docs/manifest-reference.md`](docs/manifest-reference.md) | Référence complète du schema manifest (tous les champs, types, valeurs) |
+| [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) | Ajouter un agent, un workflow, un stack |
+| [`SECURITY.md`](SECURITY.md) | Responsible disclosure + design sécurité |
+| [`examples/`](examples/) | Manifests pré-configurés pour 4 types de projet |
+
+---
+
 ## Contributing
 
 Voir [CONTRIBUTING.md](.github/CONTRIBUTING.md) — bugs, nouveaux agents, stacks, workflows.
+
+Idées et discussions : [GitHub Discussions](https://github.com/louisschlegel/claudekit/discussions)
+
+Roadmap : [Issue #1](https://github.com/louisschlegel/claudekit/issues/1)
 
 ## License
 
