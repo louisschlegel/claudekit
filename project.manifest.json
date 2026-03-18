@@ -1,1 +1,63 @@
-{}
+{
+  "project": {
+    "name": "claudekit",
+    "description": "Universal Claude Code template — auto-configuring, self-improving, with 14 agents and 14 workflows",
+    "type": "library",
+    "language": "en"
+  },
+  "stack": {
+    "languages": ["python", "bash"],
+    "frameworks": [],
+    "databases": [],
+    "runtime": "python",
+    "testing": ["pytest"],
+    "linting": ["ruff"],
+    "package_managers": ["pip"],
+    "monorepo_tools": [],
+    "data_tools": [],
+    "serverless": [],
+    "desktop_frameworks": []
+  },
+  "workflow": {
+    "git_strategy": "feature-branch",
+    "ci_cd": "github-actions",
+    "deploy_target": "github-releases",
+    "auto_deploy": false,
+    "commit_language": "en",
+    "environments": ["main"],
+    "health_check_url": "",
+    "smoke_tests": ["make validate"],
+    "github_releases": true
+  },
+  "mcp_servers": ["github"],
+  "guards": {
+    "lint": true,
+    "type_check": false,
+    "test_on_edit": false,
+    "migration_check": false,
+    "i18n_check": false,
+    "secret_scan": true
+  },
+  "agents": [
+    "architect", "reviewer", "tester", "security-auditor", "debug-detective",
+    "explorer", "doc-writer", "performance-analyst", "release-manager",
+    "devops-engineer", "template-improver"
+  ],
+  "workflows": [
+    "feature", "bugfix", "hotfix", "release", "security-audit",
+    "dependency-update", "refactor", "onboard", "self-improve"
+  ],
+  "automation": {
+    "self_improve_every_n_sessions": 10,
+    "learning_file": "learning.md"
+  },
+  "security": {
+    "secret_scan": true,
+    "dependency_audit": true,
+    "owasp_check": false
+  },
+  "template": {
+    "version": "1.0.0",
+    "source": "https://github.com/louisschlegel/claudekit"
+  }
+}

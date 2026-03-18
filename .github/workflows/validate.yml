@@ -116,3 +116,9 @@ jobs:
             python3 -c "import json; d=json.load(open('$f')); assert 'project' in d and 'stack' in d, 'Missing required sections'" \
               && echo "OK: $f" || exit 1
           done
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short

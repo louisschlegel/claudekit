@@ -630,9 +630,16 @@ for pattern in INJECTION_PATTERNS:
 
 # ── Intent classification ────────────────────────────────────────────────────
 INTENT_RULES = [
-    ("release",          ["release", "prépare une version", "prépare la version", "tag v", "publish", "déploie une release"]),
+    ("hotfix",           ["hotfix", "urgence prod", "correctif immédiat", "ça crashe en prod", "emergency", "production down", "service down"]),
+    ("incident",         ["incident prod", "incident en prod", "alerte critique", "service dégradé", "sla breach", "p1 incident", "p2 incident", "production incident", "service unavailable", "outage"]),
+    ("db-migration",     ["migration db", "migration base", "ajoute une migration", "modifie le schéma", "alter table", "nouvelle colonne", "supprime une colonne", "add column", "drop column", "migrate schema", "schema migration"]),
+    ("perf-test",        ["test de charge", "load test", "benchmark", "tient la charge", "mesure les performances", "locust", "k6", "performance test", "stress test", "perf baseline"]),
+    ("publish",          ["publie le package", "publie sur pypi", "publie sur npm", "npm publish", "publish to pypi", "release library", "publie la librairie", "crates.io", "rubygems", "publish package"]),
+    ("api-design",       ["design l'api", "design api", "nouvel endpoint", "api first", "contrat api", "définis le schéma", "ajoute un endpoint", "openapi", "graphql schema", "grpc proto", "api contract"]),
+    ("release",          ["release", "prépare une version", "prépare la version", "tag v", "déploie une release"]),
     ("bugfix",           ["bug", "crash", "erreur", "error", "fixe", "corrige", "ça marche pas", "broken", "regression", "régression"]),
     ("security-audit",   ["audit", "sécurité", "security", "vulnérabilité", "scan", "cve", "faille"]),
+    ("update-deps",      ["mets à jour les dépendances", "update deps", "update dependencies", "upgrade packages", "outdated packages"]),
     ("refactor",         ["refactor", "nettoie", "restructure", "améliore la structure", "clean up", "dette technique"]),
     ("improve-template", ["améliore le template", "self-improve", "mets-toi à jour", "update template", "template improve"]),
     ("onboard",          ["setup", "initialise", "configure le projet", "onboard", "nouveau projet", "legacy"]),
