@@ -1,0 +1,83 @@
+{
+  "_comment": "Exemple manifest — Infrastructure as Code (Terraform + AWS + Kubernetes)",
+  "project": {
+    "name": "mon-infra",
+    "description": "Infrastructure AWS multi-environnements (dev/staging/prod) — Terraform + EKS + RDS + Monitoring",
+    "type": "iac",
+    "language": "en"
+  },
+  "stack": {
+    "languages": ["hcl", "bash", "python"],
+    "frameworks": ["terraform", "ansible"],
+    "databases": ["postgresql", "redis"],
+    "runtime": "terraform",
+    "testing": ["terratest", "pytest"],
+    "linting": ["tflint", "tfsec", "checkov"],
+    "package_managers": ["pip"],
+    "monorepo_tools": [],
+    "data_tools": [],
+    "serverless": [],
+    "desktop_frameworks": []
+  },
+  "workflow": {
+    "git_strategy": "feature-branch",
+    "ci_cd": "github-actions",
+    "deploy_target": "aws",
+    "auto_deploy": false,
+    "commit_language": "en",
+    "environments": ["dev", "staging", "prod"],
+    "health_check_url": "",
+    "smoke_tests": ["make validate", "make plan-dev"],
+    "github_releases": true
+  },
+  "mcp_servers": ["github", "filesystem"],
+  "guards": {
+    "lint": true,
+    "type_check": false,
+    "test_on_edit": false,
+    "migration_check": false,
+    "i18n_check": false,
+    "secret_scan": true
+  },
+  "agents": [
+    "architect",
+    "reviewer",
+    "tester",
+    "security-auditor",
+    "debug-detective",
+    "explorer",
+    "doc-writer",
+    "devops-engineer",
+    "cost-analyst",
+    "release-manager",
+    "template-improver"
+  ],
+  "workflows": [
+    "feature",
+    "bugfix",
+    "hotfix",
+    "release",
+    "security-audit",
+    "dependency-update",
+    "dependency-audit",
+    "refactor",
+    "onboard",
+    "self-improve",
+    "incident-response",
+    "monitoring-setup",
+    "cost-optimization"
+  ],
+  "automation": {
+    "self_improve_every_n_sessions": 10,
+    "learning_file": "learning.md"
+  },
+  "security": {
+    "secret_scan": true,
+    "dependency_audit": true,
+    "owasp_check": false
+  },
+  "template": {
+    "version": "1.1.0",
+    "source": "https://github.com/louisschlegel/claudekit"
+  }
+}

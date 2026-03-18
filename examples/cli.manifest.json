@@ -1,0 +1,79 @@
+{
+  "_comment": "Exemple manifest — CLI tool (Python + Click/Typer + PyPI publish)",
+  "project": {
+    "name": "mon-cli",
+    "description": "Outil CLI Python — automatisation de tâches répétitives, publié sur PyPI",
+    "type": "cli",
+    "language": "en"
+  },
+  "stack": {
+    "languages": ["python"],
+    "frameworks": ["typer", "rich"],
+    "databases": [],
+    "runtime": "python",
+    "testing": ["pytest"],
+    "linting": ["ruff", "mypy"],
+    "package_managers": ["pip", "uv"],
+    "monorepo_tools": [],
+    "data_tools": [],
+    "serverless": [],
+    "desktop_frameworks": []
+  },
+  "workflow": {
+    "git_strategy": "feature-branch",
+    "ci_cd": "github-actions",
+    "deploy_target": "pypi",
+    "auto_deploy": false,
+    "commit_language": "en",
+    "environments": ["main"],
+    "health_check_url": "",
+    "smoke_tests": ["mon-cli --version", "mon-cli --help"],
+    "github_releases": true
+  },
+  "mcp_servers": ["github"],
+  "guards": {
+    "lint": true,
+    "type_check": true,
+    "test_on_edit": true,
+    "migration_check": false,
+    "i18n_check": false,
+    "secret_scan": true
+  },
+  "agents": [
+    "architect",
+    "reviewer",
+    "tester",
+    "security-auditor",
+    "debug-detective",
+    "explorer",
+    "doc-writer",
+    "release-manager",
+    "template-improver"
+  ],
+  "workflows": [
+    "feature",
+    "bugfix",
+    "hotfix",
+    "release",
+    "security-audit",
+    "dependency-update",
+    "dependency-audit",
+    "refactor",
+    "onboard",
+    "self-improve",
+    "publish-package"
+  ],
+  "automation": {
+    "self_improve_every_n_sessions": 10,
+    "learning_file": "learning.md"
+  },
+  "security": {
+    "secret_scan": true,
+    "dependency_audit": true,
+    "owasp_check": false
+  },
+  "template": {
+    "version": "1.1.0",
+    "source": "https://github.com/louisschlegel/claudekit"
+  }
+}

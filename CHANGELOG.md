@@ -13,21 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-**New agent: `cost-analyst`**
-- Cloud cost analysis and optimization (AWS, GCP, Azure, multi-cloud)
-- Rightsizing, storage lifecycle, LLM token cost reduction, budget alerts
-- Specializations: SaaS preview env cleanup, ML GPU spot, data warehouse slots
+**2 new agents (16 total):**
+- `cost-analyst` — cloud cost optimization (AWS/GCP/Azure), LLM token reduction, rightsizing, reserved instances, budget alerts
+- `spec-reader` — reads any spec document (PDF, MD, Notion, email) → manifest + backlog + GitHub issues
 
-**3 new workflows:**
+**10 new workflows (22 total):**
 - `a-b-test.md` — power analysis, feature flag rollout, statistical significance, ship/kill/continue gate
 - `data-quality.md` — Great Expectations, dbt tests, ISO 8000 quality score, SLA monitoring
-- `llm-eval.md` — RAGAS, hallucination detection, BLEU/ROUGE, human eval, deploy gate
+- `llm-eval.md` — RAGAS, hallucination detection, BLEU/ROUGE, human eval (Cohen's κ), deploy gate
+- `spec-to-project.md` — cahier des charges → manifest + learning.md + backlog + arch + GitHub issues
+- `code-review.md` — structured PR review (BLOCKER/WARNING/SUGGESTION) → `gh pr review`
+- `monitoring-setup.md` — Prometheus/Grafana/Loki/Jaeger/Sentry → dashboards + SLOs + alerts
+- `cost-optimization.md` — cloud + LLM audit → recommendations by ROI + budget alerts + FinOps tagging
+- `dependency-audit.md` — CVE scan + license check + phantom deps → report without modifying
 
-**`gen.py`:** `--dry-run`, `--diff`, Pulumi, Deno 2.x, Nx affected, 3 new intents (ab-test, data-quality, llm-eval)
+**`gen.py`:** `--dry-run`, `--diff`, Pulumi, Deno 2.x, Nx affected, 8 new intents (23 total), auto-installs `pre-push` git hook
 
 **`scripts/claudekit.py`:** unified CLI — validate, check, gen, bump, status, install
 
+**`scripts/migrate-template.py`:** automatic manifest migration between versions (1.0.x → 1.1.0 → ...)
+
 **`auto-learn.py`:** `--deduplicate` flag for cross-session deduplication
+
+**`.claude/hooks/pre-push.sh`:** git pre-push hook — secret scan + lint + tests before every push
+
+**`examples/`:** 2 new pre-filled manifests — `iac.manifest.json` (Terraform+AWS+EKS), `cli.manifest.json` (Python+Typer+PyPI)
 
 ## [1.0.0] - 2026-03-18
 

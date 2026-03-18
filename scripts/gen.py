@@ -649,6 +649,10 @@ INTENT_RULES = [
     ("data-quality",     ["qualité des données", "data quality", "great expectations", "données corrompues", "anomalie de données"]),
     ("llm-eval",         ["évalue le rag", "llm eval", "ragas", "qualité des réponses", "hallucination", "benchmark llm", "rag evaluation"]),
     ("spec-to-project",  ["cahier des charges", "cahier de charges", "analyse cette spec", "voici les specs", "voici mon brief", "prd", "product requirement", "génère le projet depuis", "setup depuis spec", "j'ai un document de spec", "analyse ce document"]),
+    ("code-review",      ["review cette pr", "relis ce code", "code review", "analyse ces changements", "review le diff", "donne moi un review", "relecture", "pr review", "review this"]),
+    ("monitoring-setup", ["setup monitoring", "configure observabilité", "ajoute prometheus", "grafana", "datadog", "configure les alertes", "métriques", "logs centralisés", "tracing", "observabilité"]),
+    ("cost-optimization",["optimise les coûts", "réduis les coûts cloud", "trop cher aws", "facture cloud", "optimise les tokens", "rightsizing", "coûts llm", "burn rate trop élevé", "coût infrastructure"]),
+    ("dependency-audit", ["audit les dépendances", "vérifie les cve", "scan les vulnérabilités", "dépendances vulnérables", "npm audit", "pip-audit", "security scan deps", "snyk", "licence check"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]
@@ -1016,6 +1020,25 @@ def main(dry_run: bool = False, show_diff: bool = False):
     (HOOKS_DIR / "stop.sh").write_text(generated[".claude/hooks/stop.sh"])
     (HOOKS_DIR / "stop.sh").chmod(0o755)
     hooks_generated.append("stop.sh")
+
+    # Install pre-push git hook (symlink or copy)
+    pre_push_src = HOOKS_DIR / "pre-push.sh"
+    if pre_push_src.exists():
+        git_hooks_dir = ROOT / ".git" / "hooks"
+        if git_hooks_dir.exists():
+            pre_push_dst = git_hooks_dir / "pre-push"
+            if not pre_push_dst.exists():
+                import os
+                try:
+                    os.symlink(pre_push_src.resolve(), pre_push_dst)
+                    hooks_generated.append("pre-push (git hook installed)")
+                except OSError:
+                    import shutil
+                    shutil.copy2(pre_push_src, pre_push_dst)
+                    pre_push_dst.chmod(0o755)
+                    hooks_generated.append("pre-push (git hook copied)")
+            else:
+                hooks_generated.append("pre-push (already installed)")
 
     print(f"[ok] Hooks generes : {', '.join(hooks_generated)}")
 

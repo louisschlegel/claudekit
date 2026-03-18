@@ -38,7 +38,7 @@ Claude détecte le manifest vide → lance le setup automatiquement → génère
 
 ```
 ton-projet/
-├── CLAUDE.md                    # Orchestrateur — routing 19 intents
+├── CLAUDE.md                    # Orchestrateur — routing 23 intents
 ├── project.manifest.json        # Config générée lors du setup
 ├── learning.md                  # Mémoire institutionnelle (auto-alimentée)
 ├── .mcp.json                    # Serveurs MCP configurés
@@ -50,7 +50,7 @@ ton-projet/
 │       ├── pre-bash-guard.sh    # Blocage commandes destructives
 │       ├── post-edit.sh         # Guards qualité (lint, type-check, migrations)
 │       └── stop.sh              # Auto-learning en fin de session
-└── ...                          # Tes 16 agents et 18 workflows
+└── ...                          # Tes 16 agents et 22 workflows
 ```
 
 ---
@@ -59,7 +59,7 @@ ton-projet/
 
 ```
 template/
-├── CLAUDE.md                        # Orchestrateur — routing table (19 intents) + règles
+├── CLAUDE.md                        # Orchestrateur — routing table (23 intents) + règles
 ├── project.manifest.json            # {} → déclenche setup | rempli → contexte
 ├── project.manifest.EXAMPLE.json   # Référence complète du schema
 ├── learning.md.template             # Template pour la mémoire persistante
@@ -68,6 +68,7 @@ template/
 ├── scripts/
 │   ├── gen.py                       # Générateur principal (manifest → tout) — --dry-run, --diff
 │   ├── claudekit.py                 # CLI unifié : validate, check, gen, bump, status, install
+│   ├── migrate-template.py          # Migration manifest entre versions (1.0.x → 1.1.0 → ...)
 │   ├── auto-learn.py                # Extrait les handoffs JSON agents → learning.md (--deduplicate)
 │   ├── self-improve.py              # Moteur d'observation (log friction events)
 │   ├── version-bump.py              # Semantic versioning (patch/minor/major)
@@ -82,7 +83,7 @@ template/
 ├── .claude/
 │   ├── hooks/
 │   │   ├── session-start.sh         # Bootstrap (40+ détecteurs stack + 7 signaux)
-│   │   └── user-prompt-submit.sh    # Bootstrap (15 intents + 8 patterns injection)
+│   │   └── user-prompt-submit.sh    # Bootstrap (23 intents + 8 patterns injection)
 │   └── agents/                      # 16 agents spécialisés
 │       ├── architect.md             # Conception + ADR + JSON handoff
 │       ├── reviewer.md              # Code review (BLOCKER/WARNING/SUGGESTION)
@@ -101,7 +102,7 @@ template/
 │       ├── devops-engineer.md       # Infra, CI/CD, observabilité, résilience
 │       └── template-improver.md     # Meta-agent : améliore le template
 │
-├── workflows/                       # 18 workflows end-to-end
+├── workflows/                       # 22 workflows end-to-end
 │   ├── feature.md                   # Feature branch → merge + auto-learn
 │   ├── bugfix.md                    # Bug → root cause → test → fix
 │   ├── hotfix.md                    # Correctif urgent prod (express)
@@ -119,7 +120,11 @@ template/
 │   ├── a-b-test.md                  # Power analysis → feature flags → significance → ship/kill
 │   ├── data-quality.md              # Great Expectations + dbt + ISO 8000 score + SLA
 │   ├── llm-eval.md                  # RAGAS + hallucination detection + BLEU/ROUGE + deploy gate
-│   └── spec-to-project.md           # Cahier des charges → manifest + backlog + arch + GitHub issues
+│   ├── spec-to-project.md           # Cahier des charges → manifest + backlog + arch + GitHub issues
+│   ├── code-review.md               # PR review structuré (BLOCKER/WARNING/SUGGESTION) → gh pr review
+│   ├── monitoring-setup.md          # Prometheus/Grafana/Loki/Sentry → dashboards + alertes + SLOs
+│   ├── cost-optimization.md         # Audit cloud + LLM → recommandations ROI + budget alerts
+│   └── dependency-audit.md          # CVE + licences + deps fantômes → rapport sans modification
 │
 └── .template/
     ├── version.json                 # Version du template + historique
@@ -135,7 +140,7 @@ template/
 
 Chaque message est analysé avant d'arriver à Claude :
 - **Injection detection** : bloque 8 patterns de prompt injection
-- **Intent classification** : 19 intents détectés automatiquement
+- **Intent classification** : 23 intents détectés automatiquement
 
 | Intent | Mots-clés déclencheurs |
 |--------|----------------------|
@@ -149,6 +154,10 @@ Chaque message est analysé avant d'arriver à Claude :
 | `data-quality` | qualité des données, great expectations, dbt test, validation données |
 | `llm-eval` | évalue le rag, llm eval, ragas, hallucination, benchmark llm |
 | `spec-to-project` | cahier des charges, voici les specs, voici mon brief, PRD, analyse ce document |
+| `code-review` | review cette PR, relis ce code, code review, review le diff, relecture |
+| `monitoring-setup` | setup monitoring, prometheus, grafana, datadog, observabilité, alertes |
+| `cost-optimization` | optimise les coûts, trop cher AWS, facture cloud, rightsizing, coûts LLM |
+| `dependency-audit` | audit les dépendances, vérifie les CVE, npm audit, pip-audit, licence check |
 | `feature` | implémente, ajoute, nouvelle feature |
 | `bugfix` | bug, crash, erreur, fixe, regression |
 | `release` | release, prépare une version, tag v |
@@ -243,6 +252,10 @@ Tous les agents ont un **HANDOFF JSON structuré** pour passage de contexte, et 
 | `data-quality.md` | `data-quality` | data-engineer → tester → reviewer |
 | `llm-eval.md` | `llm-eval` | ml-engineer → tester → reviewer |
 | `spec-to-project.md` | `spec-to-project` | spec-reader → architect → doc-writer |
+| `code-review.md` | `code-review` | explorer → security-auditor → reviewer → architect |
+| `monitoring-setup.md` | `monitoring-setup` | devops-engineer → architect → doc-writer |
+| `cost-optimization.md` | `cost-optimization` | cost-analyst → architect → devops-engineer |
+| `dependency-audit.md` | `dependency-audit` | security-auditor → reviewer |
 
 ---
 
@@ -256,6 +269,8 @@ Le dossier [`examples/`](examples/) contient des manifests pré-configurés :
 | [`api.manifest.json`](examples/api.manifest.json) | FastAPI + PostgreSQL + Docker |
 | [`ml.manifest.json`](examples/ml.manifest.json) | PyTorch + MLflow + FastAPI |
 | [`mobile.manifest.json`](examples/mobile.manifest.json) | React Native + Expo + Turborepo |
+| [`iac.manifest.json`](examples/iac.manifest.json) | Terraform + AWS + EKS + Kubernetes |
+| [`cli.manifest.json`](examples/cli.manifest.json) | Python CLI (Typer + Rich) → PyPI |
 
 Copier le manifest le plus proche de ton projet, le renommer `project.manifest.json`, puis lancer `python3 scripts/gen.py`.
 
@@ -269,7 +284,9 @@ Copier le manifest le plus proche de ton projet, le renommer `project.manifest.j
 |---------|-------------------|
 | `.claude/settings.local.json` | Permissions Bash adaptées au stack |
 | `.claude/hooks/session-start.sh` | Contexte + 7 signaux opérationnels |
-| `.claude/hooks/user-prompt-submit.sh` | 19 intents + injection detection |
+| `.claude/hooks/user-prompt-submit.sh` | 23 intents + injection detection |
+| `.git/hooks/pre-push` | Secret scan + lint + tests avant chaque push (installé par gen.py) |
+| `scripts/migrate-template.py` | Migration automatique manifest entre versions |
 | `.claude/hooks/pre-bash-guard.sh` | Blocage commandes destructives |
 | `.claude/hooks/post-edit.sh` | Guards qualité |
 | `.claude/hooks/stop.sh` | Auto-learning async |
@@ -366,6 +383,11 @@ python3 scripts/gen.py --diff           # Montre les diffs avec la config actuel
 
 # auto-learn
 python3 scripts/auto-learn.py --deduplicate  # Déduplique les entrées cross-session
+
+# migrate-template (mise à jour du template)
+python3 scripts/migrate-template.py --check  # Vérifie si des migrations sont disponibles
+python3 scripts/migrate-template.py          # Applique les migrations automatiquement
+python3 scripts/migrate-template.py --dry-run  # Simule sans écrire
 
 # make shortcuts
 make validate      # CI complète en local
