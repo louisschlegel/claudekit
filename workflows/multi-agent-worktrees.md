@@ -51,3 +51,10 @@ Lancer l'agent `tester` sur le résultat mergé.
 git worktree prune
 git branch -d feat/task-{1..n}
 ```
+
+---
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{"status": "completed", "summary": "", "next_action": "", "artifacts": []}
+```

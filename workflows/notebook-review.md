@@ -30,3 +30,10 @@ print('OK')
 
 ## Agent recommandé
 Invoquer `data-engineer` + `reviewer` en séquence.
+
+---
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{"status": "completed", "summary": "", "next_action": "", "artifacts": []}
+```

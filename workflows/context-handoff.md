@@ -41,3 +41,10 @@ Le hook `session-start.sh` injecte automatiquement le dernier `handoff.md` s'il 
 ## Notes
 - Max 1 handoff.md actif (l'ancien est archivé en `handoff-{timestamp}.md`)
 - Le `pre-compact.sh` hook sauvegarde aussi dans `session-backup.md` automatiquement
+
+---
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{"status": "completed", "summary": "", "next_action": "", "artifacts": []}
+```

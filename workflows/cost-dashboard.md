@@ -31,3 +31,10 @@ Disponible sur https://platform.claude.com/docs/en/build-with-claude/claude-code
 
 ## Agent recommandé
 `cost-analyst`
+
+---
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{"status": "completed", "summary": "", "next_action": "", "artifacts": []}
+```

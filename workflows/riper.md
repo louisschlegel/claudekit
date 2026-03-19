@@ -76,3 +76,10 @@ Actions:
 - Update learning.md with patterns discovered
 
 Output: Verdict (ship / needs fixes) + learning.md update.
+
+---
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{"status": "completed", "summary": "", "next_action": "", "artifacts": []}
+```
