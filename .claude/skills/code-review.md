@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Run 9 specialized review agents in parallel (test runner, linter, security, quality, performance, dependency, test quality, simplification, code reviewer). Returns verdict: Ready to Merge | Needs Attention | Needs Work.
+effort: high
 triggers:
   - "review my code"
   - "code review"

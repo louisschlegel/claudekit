@@ -1,6 +1,7 @@
 ---
 name: epic-merge
 description: Merge a completed epic worktree back to main — run full validation, create PR, clean up worktree.
+effort: low
 triggers:
   - "epic-merge"
   - "finish epic"

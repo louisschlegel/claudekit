@@ -1,6 +1,7 @@
 ---
 name: loop-guard
 description: Detect and break infinite correction loops — if same fix attempted 3 times, stop and rethink
+effort: low
 triggers:
   - "je tourne en rond"
   - "stuck in loop"

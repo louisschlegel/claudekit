@@ -1,6 +1,7 @@
 ---
 name: auto-research
 description: Self-improving skill loop — run against eval criteria, analyze failures, improve, re-test
+effort: high
 triggers:
   - "améliore cette skill"
   - "eval cette skill"

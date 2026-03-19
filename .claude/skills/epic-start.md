@@ -1,6 +1,7 @@
 ---
 name: epic-start
 description: Start a GitHub Issue as an isolated epic — create a git worktree, link to the issue, scaffold the work. Use for issues > 1 day of work.
+effort: low
 triggers:
   - "start epic"
   - "start issue"

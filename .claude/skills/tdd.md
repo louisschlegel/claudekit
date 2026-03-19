@@ -1,6 +1,8 @@
 ---
 name: tdd
 description: Enforce Red-Green-Refactor TDD cycle — write failing test first, then implement, then clean up
+effort: medium
+user-invocable: true
 triggers:
   - "tdd"
   - "test driven"

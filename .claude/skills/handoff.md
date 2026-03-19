@@ -1,6 +1,8 @@
 ---
 name: handoff
 description: Create a structured context handoff for the next session — task state, decisions, files modified, next steps
+effort: medium
+user-invocable: true
 triggers:
   - "handoff"
   - "sauvegarde le contexte"

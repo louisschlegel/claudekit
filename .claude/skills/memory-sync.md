@@ -1,6 +1,8 @@
 ---
 name: memory-sync
 description: Promote stable patterns from learning.md into CLAUDE.md custom_rules when seen 3+ times
+effort: medium
+user-invocable: true
 triggers:
   - "sync la mémoire"
   - "consolide les patterns"

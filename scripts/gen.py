@@ -1743,6 +1743,34 @@ def build_hooks(manifest: dict) -> dict:
         }]
     })
 
+    # StopFailure — fires on API errors (rate limit, billing, server error)
+    hooks["StopFailure"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/tool-failure.sh",
+            "timeout": 3,
+            "async": True
+        }]
+    }]
+
+    # TaskCompleted — quality gate before task completion
+    hooks["TaskCompleted"] = [{
+        "hooks": [{
+            "type": "prompt",
+            "prompt": "Verify the task is truly complete. Check: are there uncommitted changes? Are tests passing? Is there anything left to do? If incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}."
+        }]
+    }]
+
+    # InstructionsLoaded — audit logging of loaded instructions
+    hooks["InstructionsLoaded"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/observability.sh",
+            "timeout": 2,
+            "async": True
+        }]
+    }]
+
     return hooks
 
 
