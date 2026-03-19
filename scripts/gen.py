@@ -25,6 +25,12 @@ SETTINGS_PATH = ROOT / ".claude" / "settings.local.json"
 MCP_PATH = ROOT / ".mcp.json"
 HOOKS_DIR = ROOT / ".claude" / "hooks"
 
+# Hooks gérés par gen.py — tout autre .sh dans hooks/ est custom et non touché
+GENERATED_HOOK_NAMES = {
+    "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
+    "post-edit.sh", "stop.sh", "pre-push.sh",
+}
+
 
 # ─── Permissions base (toujours incluses) ────────────────────────────────────
 BASE_PERMISSIONS = [
@@ -201,6 +207,85 @@ DB_PERMISSIONS = {
     "neon": [],
 }
 
+# ─── Native Claude integrations (zero-config, permissions only) ──────────────
+# Ces intégrations sont fournies directement par Claude.ai — pas besoin de serveur
+# à installer. Il suffit de les lister dans manifest.claude_native_integrations[]
+# pour que leurs permissions soient auto-approuvées dans settings.local.json.
+CLAUDE_NATIVE_INTEGRATIONS = {
+    "gmail": [
+        "mcp__claude_ai_Gmail__gmail_create_draft",
+        "mcp__claude_ai_Gmail__gmail_get_profile",
+        "mcp__claude_ai_Gmail__gmail_list_drafts",
+        "mcp__claude_ai_Gmail__gmail_list_labels",
+        "mcp__claude_ai_Gmail__gmail_read_message",
+        "mcp__claude_ai_Gmail__gmail_read_thread",
+        "mcp__claude_ai_Gmail__gmail_search_messages",
+    ],
+    "google-calendar": [
+        "mcp__claude_ai_Google_Calendar__gcal_create_event",
+        "mcp__claude_ai_Google_Calendar__gcal_delete_event",
+        "mcp__claude_ai_Google_Calendar__gcal_find_meeting_times",
+        "mcp__claude_ai_Google_Calendar__gcal_find_my_free_time",
+        "mcp__claude_ai_Google_Calendar__gcal_get_event",
+        "mcp__claude_ai_Google_Calendar__gcal_list_calendars",
+        "mcp__claude_ai_Google_Calendar__gcal_list_events",
+        "mcp__claude_ai_Google_Calendar__gcal_respond_to_event",
+        "mcp__claude_ai_Google_Calendar__gcal_update_event",
+    ],
+    "canva": [
+        "mcp__claude_ai_Canva__cancel-editing-transaction",
+        "mcp__claude_ai_Canva__comment-on-design",
+        "mcp__claude_ai_Canva__commit-editing-transaction",
+        "mcp__claude_ai_Canva__create-design-from-candidate",
+        "mcp__claude_ai_Canva__create-folder",
+        "mcp__claude_ai_Canva__export-design",
+        "mcp__claude_ai_Canva__generate-design",
+        "mcp__claude_ai_Canva__generate-design-structured",
+        "mcp__claude_ai_Canva__get-assets",
+        "mcp__claude_ai_Canva__get-design",
+        "mcp__claude_ai_Canva__get-design-content",
+        "mcp__claude_ai_Canva__get-design-pages",
+        "mcp__claude_ai_Canva__get-design-thumbnail",
+        "mcp__claude_ai_Canva__get-export-formats",
+        "mcp__claude_ai_Canva__get-presenter-notes",
+        "mcp__claude_ai_Canva__import-design-from-url",
+        "mcp__claude_ai_Canva__list-brand-kits",
+        "mcp__claude_ai_Canva__list-comments",
+        "mcp__claude_ai_Canva__list-folder-items",
+        "mcp__claude_ai_Canva__list-replies",
+        "mcp__claude_ai_Canva__move-item-to-folder",
+        "mcp__claude_ai_Canva__perform-editing-operations",
+        "mcp__claude_ai_Canva__reply-to-comment",
+        "mcp__claude_ai_Canva__request-outline-review",
+        "mcp__claude_ai_Canva__resize-design",
+        "mcp__claude_ai_Canva__resolve-shortlink",
+        "mcp__claude_ai_Canva__search-designs",
+        "mcp__claude_ai_Canva__search-folders",
+        "mcp__claude_ai_Canva__start-editing-transaction",
+        "mcp__claude_ai_Canva__upload-asset-from-url",
+    ],
+    "claude-in-chrome": [
+        "mcp__claude-in-chrome__computer",
+        "mcp__claude-in-chrome__find",
+        "mcp__claude-in-chrome__form_input",
+        "mcp__claude-in-chrome__get_page_text",
+        "mcp__claude-in-chrome__gif_creator",
+        "mcp__claude-in-chrome__javascript_tool",
+        "mcp__claude-in-chrome__navigate",
+        "mcp__claude-in-chrome__read_console_messages",
+        "mcp__claude-in-chrome__read_network_requests",
+        "mcp__claude-in-chrome__read_page",
+        "mcp__claude-in-chrome__resize_window",
+        "mcp__claude-in-chrome__shortcuts_execute",
+        "mcp__claude-in-chrome__shortcuts_list",
+        "mcp__claude-in-chrome__switch_browser",
+        "mcp__claude-in-chrome__tabs_context_mcp",
+        "mcp__claude-in-chrome__tabs_create_mcp",
+        "mcp__claude-in-chrome__update_plan",
+        "mcp__claude-in-chrome__upload_image",
+    ],
+}
+
 # ─── MCP server templates ─────────────────────────────────────────────────────
 MCP_TEMPLATES = {
     "filesystem": {
@@ -335,20 +420,59 @@ if [ "$MANIFEST_CONTENT" = "{}" ] || [ -z "$MANIFEST_CONTENT" ]; then
   DETECTED_CLEAN=$(printf "%b" "$DETECTED")
   STACK_SECTION="${DETECTED_CLEAN:-Projet vide ou nouveau.}"
 
-  python3 - "$LEGACY_NOTE" "$STACK_SECTION" <<'PYEOF'
+  # ── Audit config Claude existante ──────────────────────────────────────────
+  EXISTING_CLAUDE=""
+  SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.local.json"
+  MCP_FILE="$PROJECT_ROOT/.mcp.json"
+  HOOKS_DIR="$PROJECT_ROOT/.claude/hooks"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh"
+
+  if [ -f "$SETTINGS_FILE" ]; then
+    PERM_COUNT=$(python3 -c "import json; d=json.load(open('$SETTINGS_FILE')); print(len(d.get('permissions',{}).get('allow',[])))" 2>/dev/null || echo "?")
+    EXISTING_CLAUDE="$EXISTING_CLAUDE\n- .claude/settings.local.json ($PERM_COUNT permissions)"
+  fi
+  if [ -f "$MCP_FILE" ]; then
+    MCP_SERVERS=$(python3 -c "import json; d=json.load(open('$MCP_FILE')); print(', '.join(d.get('mcpServers',{}).keys()))" 2>/dev/null || echo "?")
+    EXISTING_CLAUDE="$EXISTING_CLAUDE\n- .mcp.json (serveurs: $MCP_SERVERS)"
+  fi
+  if [ -d "$HOOKS_DIR" ]; then
+    CUSTOM_HOOKS=""
+    for hook in "$HOOKS_DIR"/*.sh; do
+      [ -f "$hook" ] || continue
+      hname=$(basename "$hook")
+      is_known=0
+      for known in $KNOWN_HOOKS; do [ "$hname" = "$known" ] && is_known=1 && break; done
+      [ "$is_known" -eq 0 ] && CUSTOM_HOOKS="$CUSTOM_HOOKS $hname"
+    done
+    [ -n "$CUSTOM_HOOKS" ] && EXISTING_CLAUDE="$EXISTING_CLAUDE\n- hooks custom (seront conservés) :$CUSTOM_HOOKS"
+    [ -d "$HOOKS_DIR" ] && ls "$HOOKS_DIR"/*.sh &>/dev/null && EXISTING_CLAUDE="$EXISTING_CLAUDE\n- hooks claudekit existants (seront remplacés par gen.py)"
+  fi
+
+  EXISTING_CLAUDE_CLEAN=$(printf "%b" "$EXISTING_CLAUDE")
+
+  python3 - "$LEGACY_NOTE" "$STACK_SECTION" "$EXISTING_CLAUDE_CLEAN" <<'PYEOF'
 import json, sys
 legacy = sys.argv[1]
 stack = sys.argv[2]
+existing_claude = sys.argv[3]
 lines = ["=== SETUP REQUIS ==="]
 if legacy:
     lines += ["", legacy]
 lines += ["", "Stack detecte :", stack, ""]
+if existing_claude.strip():
+    lines += ["Config Claude existante detectee :"]
+    lines += [existing_claude, ""]
+    lines += ["IMPORTANT : Presente cette config a l'utilisateur avant de lancer gen.py."]
+    lines += ["Demande ce qu'il veut conserver. Utilise --preserve-custom pour fusionner."]
+    lines += [""]
 lines += ["Instructions :"]
 lines += ["1. Si legacy : explore d'abord (Glob/Grep) pour valider le stack"]
 lines += ["2. Lance le SETUP INTERVIEW (CLAUDE.md) - questions une par une"]
 lines += ["3. Pre-remplis depuis la detection ci-dessus, confirme avec l'utilisateur"]
 lines += ["4. Ecris project.manifest.json"]
-lines += ["5. Lance python3 scripts/gen.py"]
+lines += ["5. Lance python3 scripts/gen.py --diff pour apercu des changements"]
+lines += ["6. Si config existante a preserver : python3 scripts/gen.py --preserve-custom"]
+lines += ["   Sinon : python3 scripts/gen.py"]
 msg = "\n".join(lines)
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": msg}}))
 PYEOF
@@ -802,6 +926,13 @@ def build_permissions(manifest: dict) -> list:
             if p not in perms:
                 perms.append(p)
 
+    # Native Claude integrations (gmail, google-calendar, canva, claude-in-chrome)
+    # Pas de serveur à installer — juste des permissions à auto-approuver
+    for integration in manifest.get("claude_native_integrations", []):
+        for p in CLAUDE_NATIVE_INTEGRATIONS.get(integration, []):
+            if p not in perms:
+                perms.append(p)
+
     # Extra permissions from manifest
     for extra in manifest.get("permissions", {}).get("extra_bash", []):
         perms.append(f"Bash({extra}:*)")
@@ -909,6 +1040,86 @@ def build_settings(manifest: dict) -> dict:
     return settings
 
 
+# ─── Audit config Claude existante ───────────────────────────────────────────
+
+def audit_existing_claude_config(generated_settings_json: str, generated_mcp_json: str | None) -> dict:
+    """
+    Compare la config Claude existante avec ce que gen.py s'apprête à générer.
+    Retourne les éléments qui seraient perdus si on écrasait sans --preserve-custom.
+    """
+    result = {
+        "has_existing": False,
+        "custom_permissions": [],   # permissions dans l'existant, absentes du généré
+        "custom_mcp_servers": {},   # serveurs MCP non reconnus par gen.py
+        "custom_hooks": [],         # hooks .sh non gérés par gen.py (jamais écrasés)
+    }
+
+    # ── settings.local.json ────────────────────────────────────────────────────
+    if SETTINGS_PATH.exists():
+        try:
+            existing = json.loads(SETTINGS_PATH.read_text())
+            generated = json.loads(generated_settings_json)
+            existing_perms = set(existing.get("permissions", {}).get("allow", []))
+            generated_perms = set(generated.get("permissions", {}).get("allow", []))
+            result["custom_permissions"] = sorted(existing_perms - generated_perms)
+            if existing_perms:
+                result["has_existing"] = True
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # ── .mcp.json ──────────────────────────────────────────────────────────────
+    if MCP_PATH.exists():
+        try:
+            existing_mcp = json.loads(MCP_PATH.read_text()).get("mcpServers", {})
+            # Serveurs présents dans l'existant mais absents de MCP_TEMPLATES → custom
+            result["custom_mcp_servers"] = {
+                k: v for k, v in existing_mcp.items() if k not in MCP_TEMPLATES
+            }
+            if existing_mcp:
+                result["has_existing"] = True
+        except json.JSONDecodeError:
+            pass
+
+    # ── hooks custom ───────────────────────────────────────────────────────────
+    if HOOKS_DIR.exists():
+        for f in sorted(HOOKS_DIR.glob("*.sh")):
+            if f.name not in GENERATED_HOOK_NAMES:
+                result["custom_hooks"].append(f.name)
+        if list(HOOKS_DIR.glob("*.sh")):
+            result["has_existing"] = True
+
+    return result
+
+
+def merge_custom_into_generated(generated: dict, audit: dict) -> dict:
+    """
+    Fusionne les éléments custom (permissions, MCP servers) dans les fichiers générés.
+    Utilisé avec --preserve-custom.
+    """
+    merged = dict(generated)
+
+    # Merge permissions
+    if audit["custom_permissions"]:
+        settings = json.loads(merged[".claude/settings.local.json"])
+        existing_perms = settings["permissions"]["allow"]
+        for p in audit["custom_permissions"]:
+            if p not in existing_perms:
+                existing_perms.append(p)
+        merged[".claude/settings.local.json"] = json.dumps(settings, indent=2, ensure_ascii=False)
+
+    # Merge MCP servers
+    if audit["custom_mcp_servers"] and ".mcp.json" in merged:
+        mcp_data = json.loads(merged[".mcp.json"])
+        mcp_data["mcpServers"].update(audit["custom_mcp_servers"])
+        merged[".mcp.json"] = json.dumps(mcp_data, indent=2, ensure_ascii=False)
+    elif audit["custom_mcp_servers"]:
+        # Pas de .mcp.json généré mais il y a des serveurs custom à préserver
+        mcp_data = {"mcpServers": audit["custom_mcp_servers"]}
+        merged[".mcp.json"] = json.dumps(mcp_data, indent=2, ensure_ascii=False)
+
+    return merged
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def _build_generated_files(manifest: dict) -> dict:
@@ -935,7 +1146,7 @@ def _build_generated_files(manifest: dict) -> dict:
     return files
 
 
-def main(dry_run: bool = False, show_diff: bool = False):
+def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool = False):
     print("gen.py — Generation de la config Claude Code")
     print(f"   Root: {ROOT}")
 
@@ -952,6 +1163,36 @@ def main(dry_run: bool = False, show_diff: bool = False):
     print(f"   Projet: {project_name}")
 
     generated = _build_generated_files(manifest)
+
+    # ── Audit config existante ─────────────────────────────────────────────────
+    generated_mcp = generated.get(".mcp.json")
+    audit = audit_existing_claude_config(generated[".claude/settings.local.json"], generated_mcp)
+
+    if audit["has_existing"] and not dry_run and not show_diff:
+        print()
+        print("[audit] Config Claude existante détectée :")
+        if audit["custom_permissions"]:
+            print(f"  Permissions custom ({len(audit['custom_permissions'])}) absentes du manifest :")
+            for p in audit["custom_permissions"]:
+                print(f"    - {p}")
+        if audit["custom_mcp_servers"]:
+            print(f"  MCP servers non reconnus ({len(audit['custom_mcp_servers'])}) :")
+            for k in audit["custom_mcp_servers"]:
+                print(f"    - {k}")
+        if audit["custom_hooks"]:
+            print(f"  Hooks custom (conservés intacts) :")
+            for h in audit["custom_hooks"]:
+                print(f"    - {h}")
+        if audit["custom_permissions"] or audit["custom_mcp_servers"]:
+            if preserve_custom:
+                print()
+                print("  → --preserve-custom : fusion des éléments custom dans la config générée.")
+                generated = merge_custom_into_generated(generated, audit)
+            else:
+                print()
+                print("  → Ces éléments seront écrasés. Relance avec --preserve-custom pour les fusionner.")
+                print("    Ou ajoute-les dans project.manifest.json (permissions.extra_bash / mcp_servers).")
+        print()
 
     # ── --dry-run ─────────────────────────────────────────────────────────────
     if dry_run:
@@ -1065,6 +1306,8 @@ def main(dry_run: bool = False, show_diff: bool = False):
     print(f"  Guards   : {', '.join([k for k,v in guards.items() if v]) or 'aucun'}")
     print(f"  Agents   : {', '.join(active_agents) or 'aucun'}")
     print(f"  MCP      : {', '.join(mcp_servers.keys()) or 'aucun'}")
+    native = manifest.get("claude_native_integrations", [])
+    print(f"  Native   : {', '.join(native) or 'aucun'}")
     print()
     print("  Redemarre Claude Code pour appliquer les changements.")
     print()
@@ -1084,10 +1327,15 @@ if __name__ == "__main__":
         action="store_true",
         help="Afficher un diff unifie entre les fichiers actuels et ce qui serait genere.",
     )
+    parser.add_argument(
+        "--preserve-custom",
+        action="store_true",
+        help="Fusionner les permissions et MCP servers custom existants dans la config générée (au lieu d'écraser).",
+    )
     args = parser.parse_args()
 
     if args.dry_run and args.diff:
         print("Erreur : --dry-run et --diff sont mutuellement exclusifs.")
         sys.exit(1)
 
-    main(dry_run=args.dry_run, show_diff=args.diff)
+    main(dry_run=args.dry_run, show_diff=args.diff, preserve_custom=args.preserve_custom)
