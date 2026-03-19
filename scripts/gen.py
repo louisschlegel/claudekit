@@ -1599,11 +1599,13 @@ def build_hooks(manifest: dict) -> dict:
             "timeout": 30,
             "statusMessage": "Guards qualité en cours..."
         })
-    post_tool_hooks.append({
-        "type": "command",
-        "command": "bash .claude/hooks/observability.sh",
-        "timeout": 3
-    })
+    automation = manifest.get("automation", {})
+    if automation.get("observability", True):
+        post_tool_hooks.append({
+            "type": "command",
+            "command": "bash .claude/hooks/observability.sh",
+            "timeout": 3
+        })
     hooks["PostToolUse"] = [{
         "matcher": "Edit|Write|Bash|MultiEdit",
         "hooks": post_tool_hooks
@@ -1639,23 +1641,25 @@ def build_hooks(manifest: dict) -> dict:
         }]
     }]
 
-    # Notification — Claude needs attention
-    hooks["Notification"] = [{
-        "hooks": [{
-            "type": "command",
-            "command": "bash .claude/hooks/notification.sh",
-            "timeout": 5
+    # Notification — Claude needs attention (désactivable)
+    if automation.get("notifications", True):
+        hooks["Notification"] = [{
+            "hooks": [{
+                "type": "command",
+                "command": "bash .claude/hooks/notification.sh",
+                "timeout": 5
+            }]
         }]
-    }]
 
-    # SubagentStop — log subagent completion for observability
-    hooks["SubagentStop"] = [{
-        "hooks": [{
-            "type": "command",
-            "command": "bash .claude/hooks/subagent-stop.sh",
-            "timeout": 5
+    # SubagentStop — log subagent completion (désactivable)
+    if automation.get("subagent_logging", True):
+        hooks["SubagentStop"] = [{
+            "hooks": [{
+                "type": "command",
+                "command": "bash .claude/hooks/subagent-stop.sh",
+                "timeout": 5
+            }]
         }]
-    }]
 
     return hooks
 

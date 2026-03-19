@@ -53,7 +53,13 @@
   ],
   "automation": {
     "self_improve_every_n_sessions": 5,
-    "learning_file": "learning.md"
+    "learning_file": "learning.md",
+    "notifications": true,
+    "_comment_notifications": "Desktop + audio notification quand Claude a besoin d'attention (macOS/Linux)",
+    "subagent_logging": true,
+    "_comment_subagent_logging": "Log subagent completions to .template/agent-events.jsonl",
+    "observability": true,
+    "_comment_observability": "PostToolUse audit trail to .template/agent-events.jsonl"
   },
   "security": {
     "scan_on_push": true,
@@ -85,7 +91,7 @@
     "baseline_score": 0.72
   },
   "template": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source": "https://github.com/louisschlegel/claudekit"
   },
   "context": {

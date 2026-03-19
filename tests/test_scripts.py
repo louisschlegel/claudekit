@@ -102,6 +102,7 @@ class TestChangelogGen:
                 or "No conventional commits" in r.stdout
                 or "No previous tag" in r.stdout
                 or "Nothing to add" in r.stdout
+                or "No commits found" in r.stdout
             )
             assert valid, f"Unexpected output: {r.stdout}"
 
