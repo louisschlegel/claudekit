@@ -80,7 +80,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Hooks custom (tout ce qui n'est pas géré par claudekit)
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh"
   if [ -d "$dst/.claude/hooks" ]; then
     for hook in "$dst/.claude/hooks"/*.sh; do
       [ -f "$hook" ] || continue

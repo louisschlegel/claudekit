@@ -30,7 +30,8 @@ GENERATED_HOOK_NAMES = {
     "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
     "notification.sh", "subagent-stop.sh", "observability.sh",
-    "injection-defender.sh",
+    "injection-defender.sh", "context-monitor.sh", "live-handoff.sh",
+    "stop-guard.sh",
 }
 
 
@@ -1627,14 +1628,41 @@ def build_hooks(manifest: dict) -> dict:
             }]
         })
 
-    # Stop (toujours)
-    hooks["Stop"] = [{
+    # Context monitor — warn when context usage is high
+    hooks["PostToolUse"].append({
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|WebFetch|Agent",
         "hooks": [{
             "type": "command",
-            "command": "bash .claude/hooks/stop.sh",
-            "timeout": 10,
-            "async": True
+            "command": "bash .claude/hooks/context-monitor.sh",
+            "timeout": 3
         }]
+    })
+
+    # Live handoff — track file modifications for session state
+    hooks["PostToolUse"].append({
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/live-handoff.sh",
+            "timeout": 2
+        }]
+    })
+
+    # Stop (toujours) — includes stop-guard
+    hooks["Stop"] = [{
+        "hooks": [
+            {
+                "type": "command",
+                "command": "bash .claude/hooks/stop-guard.sh",
+                "timeout": 5
+            },
+            {
+                "type": "command",
+                "command": "bash .claude/hooks/stop.sh",
+                "timeout": 10,
+                "async": True
+            }
+        ]
     }]
 
     # PostCompact — reload context
