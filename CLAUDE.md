@@ -58,18 +58,21 @@ Questions **une par une** :
 12. Déploiement auto sur release ? (oui/non)
 
 **Bloc 4 — Automatisations Claude**
-13. **MCP servers** (à installer, besoin d'un serveur) : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`
+13. **Docs à injecter en contexte** (`context.docs_paths[]`) : liste les fichiers `.md` ou `.pdf` à inclure au démarrage de chaque session (ex: `["README.md", "docs/architecture.md", "specs/brief.pdf"]`). Limite suggérée : 3-5 fichiers, max ~100 lignes chacun.
+    Les docs sont aussi **auto-détectés** (listing) depuis `docs/`, `spec/`, `adr/`, `architecture/`, `wiki/` — même sans les configurer.
+
+14. **MCP servers** (à installer, besoin d'un serveur) : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`
     → Écrits dans `mcp_servers[]` + `.mcp.json` généré automatiquement
 
     **Intégrations natives Claude.ai** (zéro config, déjà disponibles) : `gmail`, `google-calendar`, `canva`, `claude-in-chrome`
     → Écrits dans `claude_native_integrations[]` — aucun serveur à installer, seulement les permissions sont auto-approuvées dans `settings.local.json`
     → L'utilisateur choisit lesquelles activer ; les autres continuent à demander confirmation à chaque usage
-14. Guards : lint ? type-check ? test auto ? migrations ? i18n ?
-15. Workflows à activer : `feature`, `bugfix`, `hotfix`, `release`, `security-audit`, `dependency-update`, `dependency-audit`, `refactor`, `onboard`, `self-improve`, `db-migration`, `incident-response`, `performance-baseline`, `publish-package`, `api-design`, `a-b-test`, `data-quality`, `llm-eval`, `spec-to-project`, `code-review`, `monitoring-setup`, `cost-optimization`
-16. Agents à activer : `architect`, `reviewer`, `tester`, `deployer`, `explorer`, `security-auditor`, `debug-detective`, `doc-writer`, `performance-analyst`, `release-manager`, `data-engineer`, `ml-engineer`, `devops-engineer`, `cost-analyst`, `spec-reader`, `template-improver`
-17. Type de projet (pour personnalisation) : `web-app`, `api`, `mobile`, `desktop`, `data-pipeline`, `ml`, `library`, `monorepo`, `iac`, `cli`
-18. Auto-amélioration : toutes les N sessions ? (défaut: 10)
-19. Fichier de mémoire (défaut: `learning.md`)
+15. Guards : lint ? type-check ? test auto ? migrations ? i18n ?
+16. Workflows à activer : `feature`, `bugfix`, `hotfix`, `release`, `security-audit`, `dependency-update`, `dependency-audit`, `refactor`, `onboard`, `self-improve`, `db-migration`, `incident-response`, `performance-baseline`, `publish-package`, `api-design`, `a-b-test`, `data-quality`, `llm-eval`, `spec-to-project`, `code-review`, `monitoring-setup`, `cost-optimization`
+17. Agents à activer : `architect`, `reviewer`, `tester`, `deployer`, `explorer`, `security-auditor`, `debug-detective`, `doc-writer`, `performance-analyst`, `release-manager`, `data-engineer`, `ml-engineer`, `devops-engineer`, `cost-analyst`, `spec-reader`, `template-improver`
+18. Type de projet (pour personnalisation) : `web-app`, `api`, `mobile`, `desktop`, `data-pipeline`, `ml`, `library`, `monorepo`, `iac`, `cli`
+19. Auto-amélioration : toutes les N sessions ? (défaut: 10)
+20. Fichier de mémoire (défaut: `learning.md`)
 
 **Après le setup :**
 1. Écrire `project.manifest.json` complet

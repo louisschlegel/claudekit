@@ -497,10 +497,236 @@ if [ -f "$PROJECT_ROOT/$LEARNING_FILE" ]; then
   LEARNING=$(tail -60 "$PROJECT_ROOT/$LEARNING_FILE" 2>/dev/null || echo "")
 fi
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" <<'PYEOF'
+# ─── Signal 1 — Coverage de tests ────────────────────────────────────────────
+COVERAGE=""
+if [ -f "$PROJECT_ROOT/coverage.xml" ]; then
+  COV_PCT=$(python3 -c "
+import xml.etree.ElementTree as ET
+try:
+    root = ET.parse('$PROJECT_ROOT/coverage.xml').getroot()
+    lr = root.get('line-rate','')
+    if lr: print(str(round(float(lr)*100)) + '%')
+except: pass
+" 2>/dev/null || echo "")
+  [ -n "$COV_PCT" ] && COVERAGE="Coverage: $COV_PCT"
+fi
+if [ -z "$COVERAGE" ] && [ -f "$PROJECT_ROOT/coverage/coverage-summary.json" ]; then
+  COV_PCT=$(python3 -c "
+import json
+try:
+    d=json.load(open('$PROJECT_ROOT/coverage/coverage-summary.json'))
+    pct=d.get('total',{}).get('lines',{}).get('pct')
+    if pct is not None: print(str(pct)+'%')
+except: pass
+" 2>/dev/null || echo "")
+  [ -n "$COV_PCT" ] && COVERAGE="Coverage: $COV_PCT"
+fi
+[ -z "$COVERAGE" ] && COVERAGE="Coverage: non mesuré"
+
+# ─── Signal 2 — Dépendances vulnérables ──────────────────────────────────────
+DEPS_ALERT=""
+if [ -f "$PROJECT_ROOT/requirements.txt" ] || [ -f "$PROJECT_ROOT/pyproject.toml" ]; then
+  VULN_COUNT=$(timeout 5 bash -c "cd '$PROJECT_ROOT' && pip-audit --format=json 2>/dev/null | python3 -c \"
+import json,sys
+try:
+    data=json.load(sys.stdin)
+    vulns=data.get('vulnerabilities',[]) if isinstance(data,dict) else data
+    count=len([v for v in vulns if isinstance(v,dict)])
+    print(count if count>0 else '')
+except: pass
+\"" 2>/dev/null || echo "")
+  [ -n "$VULN_COUNT" ] && DEPS_ALERT="$VULN_COUNT vulnérabilités dans les deps Python"
+fi
+if [ -z "$DEPS_ALERT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
+  VULN_COUNT=$(timeout 5 bash -c "cd '$PROJECT_ROOT' && npm audit --json 2>/dev/null | python3 -c \"
+import json,sys
+try:
+    data=json.load(sys.stdin)
+    v=data.get('metadata',{}).get('vulnerabilities',{})
+    high=v.get('high',0)+v.get('critical',0)
+    print(high if high>0 else '')
+except: pass
+\"" 2>/dev/null || echo "")
+  [ -n "$VULN_COUNT" ] && DEPS_ALERT="$VULN_COUNT vulnérabilités HIGH/CRITICAL dans les deps Node"
+fi
+
+# ─── Signal 3 — CI/CD ────────────────────────────────────────────────────────
+CI_STATUS=""
+if [ -d "$PROJECT_ROOT/.github/workflows" ]; then
+  WF_COUNT=$(ls "$PROJECT_ROOT/.github/workflows/"*.yml "$PROJECT_ROOT/.github/workflows/"*.yaml 2>/dev/null | wc -l | tr -d ' ')
+  GH_RUN=$(timeout 5 bash -c "cd '$PROJECT_ROOT' && gh run list --limit 1 --json status,conclusion,name 2>/dev/null | python3 -c \"
+import json,sys
+try:
+    runs=json.load(sys.stdin)
+    if runs:
+        r=runs[0]; label=r.get('conclusion') or r.get('status','')
+        print(f\\\"{r.get('name','')}: {label}\\\")
+except: pass
+\"" 2>/dev/null || echo "")
+  CI_STATUS="$WF_COUNT workflow(s) GitHub Actions${GH_RUN:+ — dernier run: $GH_RUN}"
+fi
+
+# ─── Signal 4 — Dette technique ──────────────────────────────────────────────
+TECH_DEBT=""
+DEBT_COUNT=$(grep -r "TODO\|FIXME\|HACK\|XXX" \
+  --include="*.py" --include="*.ts" --include="*.tsx" \
+  --include="*.js" --include="*.go" --include="*.rs" --include="*.rb" \
+  -l "$PROJECT_ROOT" 2>/dev/null \
+  | grep -v "node_modules\|\.git\|vendor\|dist\|build" \
+  | wc -l | tr -d ' ')
+[ -n "$DEBT_COUNT" ] && [ "$DEBT_COUNT" -gt 0 ] 2>/dev/null && TECH_DEBT="$DEBT_COUNT fichier(s) contiennent des TODO/FIXME/HACK" || TECH_DEBT=""
+
+# ─── Signal 5 — Branches anciennes ───────────────────────────────────────────
+OLD_BRANCHES=$(cd "$PROJECT_ROOT" && git for-each-ref \
+  --sort=committerdate \
+  --format='%(refname:short)|%(committerdate:relative)|%(committerdate:unix)' \
+  refs/heads/ 2>/dev/null \
+  | grep -v "^main\|^master\|^develop\|^staging" \
+  | python3 -c "
+import sys, time
+threshold = time.time() - 14*24*3600
+alerts = []
+for line in sys.stdin:
+    parts = line.strip().split('|')
+    if len(parts) < 3: continue
+    name, rel, ts = parts
+    try:
+        if int(ts) < threshold:
+            alerts.append(f'{name} (dernière activité : {rel})')
+    except: pass
+print('\n'.join(alerts[:5]))
+" 2>/dev/null || echo "")
+
+# ─── Signal 6 — Fichiers chauds sans tests ───────────────────────────────────
+HOT_FILES=$(cd "$PROJECT_ROOT" && git log --oneline -20 --name-only 2>/dev/null \
+  | grep -v "^[a-f0-9]\{7,\} " | grep -v "^\s*$" \
+  | grep -v "test_\|\.test\.\|_test\.\|\.spec\." \
+  | sort | uniq -c | sort -rn \
+  | python3 -c "
+import sys, os
+alerts = []
+for line in sys.stdin:
+    parts = line.strip().split(None, 1)
+    if len(parts) < 2: continue
+    try:
+        count = int(parts[0])
+    except: continue
+    if count < 3: break
+    alerts.append(f'{parts[1]} modifié {count}x récemment (pas de test détecté dans le nom)')
+print('\n'.join(alerts[:3]))
+" 2>/dev/null || echo "")
+
+# ─── Signal 7 — Migrations en attente ────────────────────────────────────────
+PENDING_MIGRATIONS=""
+DJANGO_IN_MANIFEST=$(echo "$MANIFEST" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+fw=d.get('stack',{}).get('frameworks',[])
+print('yes' if any('django' in str(f).lower() for f in fw) else '')
+" 2>/dev/null || echo "")
+if [ -n "$DJANGO_IN_MANIFEST" ]; then
+  PENDING_MIGRATIONS=$(timeout 3 bash -c "cd '$PROJECT_ROOT' && python3 manage.py showmigrations --plan 2>/dev/null | grep -c '\[ \]'" 2>/dev/null || echo "")
+  [ -n "$PENDING_MIGRATIONS" ] && [ "$PENDING_MIGRATIONS" -gt 0 ] 2>/dev/null && PENDING_MIGRATIONS="${PENDING_MIGRATIONS} migrations non appliquées" || PENDING_MIGRATIONS=""
+fi
+
+# ─── Signal 8 — Documentation disponible (auto-detect) ───────────────────────
+DOCS_LIST=$(python3 - "$PROJECT_ROOT" <<'PYDOCS'
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+docs = []
+for name in ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'ROADMAP.md', 'SECURITY.md']:
+    if (root / name).exists():
+        docs.append(name)
+for f in sorted(root.glob('*.pdf')):
+    docs.append(f.name + ' (PDF)')
+for folder in ['docs', 'doc', 'spec', 'specs', 'adr', 'ADR', 'architecture', 'design', 'wiki', 'documentation']:
+    d = root / folder
+    if d.is_dir():
+        for f in sorted(d.rglob('*')):
+            if f.suffix.lower() in ('.md', '.pdf', '.rst'):
+                rel = str(f.relative_to(root))
+                if not any(x in rel for x in ('.git', 'node_modules', 'vendor')):
+                    docs.append(rel + (' (PDF)' if f.suffix.lower() == '.pdf' else ''))
+print('\n'.join(docs[:30]))
+PYDOCS
+2>/dev/null || echo "")
+
+# ─── Signal 9 — Docs content injection (manifest.context.docs_paths) ─────────
+DOCS_CONTENT=$(echo "$MANIFEST" | python3 -c "
+import json, sys
+from pathlib import Path
+root = Path('$PROJECT_ROOT')
+manifest = json.load(sys.stdin)
+paths = manifest.get('context', {}).get('docs_paths', [])
+sections = []
+for p in paths:
+    f = root / p
+    if not f.exists():
+        sections.append(f'[{p}] → fichier non trouvé')
+        continue
+    if f.suffix.lower() == '.pdf':
+        sections.append(f'[{p}] → PDF (utilisez le tool Read pour accéder au contenu)')
+        continue
+    try:
+        lines = f.read_text(encoding='utf-8', errors='replace').splitlines()
+        content = '\n'.join(lines[:100])
+        if len(lines) > 100:
+            content += f'\n... ({len(lines) - 100} lignes supplémentaires — utilisez Read pour la suite)'
+        sections.append(f'--- {p} ---\n{content}')
+    except Exception as e:
+        sections.append(f'[{p}] → erreur lecture: {e}')
+print('\n\n'.join(sections))
+" 2>/dev/null || echo "")
+
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
-ctx = f"=== {name} - SESSION START ===\n\nBranch: {branch}\nGit status:\n{status}\n\nCommits recents:\n{log}\n\nManifest:\n{manifest}\n\nRegles custom:\n{rules}\n\n{lfile} (dernieres 60 lignes):\n{learning}"
+coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
+old_branches, hot_files, pending_migrations = sys.argv[13:16]
+docs_list, docs_content = sys.argv[16:18]
+
+ctx = "\n".join([
+    f"=== {name} - SESSION START ===",
+    "",
+    f"Branch: {branch}",
+    f"Git status:\n{status}",
+    "",
+    f"Commits recents:\n{log}",
+    "",
+    f"Manifest:\n{manifest}",
+])
+
+op_lines = ["", "=== ETAT OPERATIONNEL ===", ""]
+op_lines.append(f"Tests: {coverage}")
+op_lines.append(f"Securite: {'⚠️  ' + deps_alert if deps_alert else 'deps OK'}")
+op_lines.append(f"CI/CD: {ci_status if ci_status else 'non configuré'}")
+op_lines.append(f"Dette: {tech_debt if tech_debt else 'aucun TODO/FIXME détecté'}")
+
+alerts = []
+if old_branches:
+    for line in old_branches.strip().splitlines():
+        if line.strip(): alerts.append(f"  Branch ancienne : {line.strip()}")
+if hot_files:
+    for line in hot_files.strip().splitlines():
+        if line.strip(): alerts.append(f"  Fichier chaud : {line.strip()}")
+if pending_migrations:
+    alerts.append(f"  Migrations : {pending_migrations}")
+
+if alerts:
+    op_lines.append("")
+    op_lines.append("Points d'attention:")
+    op_lines.extend(alerts)
+
+ctx += "\n".join(op_lines)
+
+if docs_list.strip():
+    ctx += f"\n\n=== DOCUMENTATION DISPONIBLE ===\n{docs_list}"
+if docs_content.strip():
+    ctx += f"\n\n=== CONTENU DOCS (context.docs_paths) ===\n{docs_content}"
+if rules:
+    ctx += f"\n\nRegles custom:\n{rules}"
+ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF
 '''

@@ -31,6 +31,10 @@
   },
   "mcp_servers": ["github"],
   "claude_native_integrations": [],
+  "context": {
+    "docs_paths": [],
+    "custom_rules": []
+  },
   "guards": {
     "lint": true,
     "type_check": false,
