@@ -17,6 +17,17 @@ else:
     print('claudekit')
 " 2>/dev/null || echo "claudekit")
 
+LEARNING_FILE=$(python3 -c "
+import json
+from pathlib import Path
+manifest = Path('$PROJECT_ROOT/project.manifest.json')
+if manifest.exists():
+    d = json.loads(manifest.read_text())
+    print(d.get('context', {}).get('learning_file', 'learning.md'))
+else:
+    print('learning.md')
+" 2>/dev/null || echo "learning.md")
+
 # Log observation for self-improvement engine
 if [ -f "$PROJECT_ROOT/scripts/self-improve.py" ]; then
     python3 "$PROJECT_ROOT/scripts/self-improve.py" \
@@ -24,6 +35,13 @@ if [ -f "$PROJECT_ROOT/scripts/self-improve.py" ]; then
         --type "session_end" \
         --note "Session completed" \
         2>/dev/null &
+fi
+
+# Logger une observation de session pour le self-improve engine (format JSON)
+if command -v python3 &>/dev/null && [ -f "$PROJECT_ROOT/scripts/self-improve.py" ]; then
+  python3 "$PROJECT_ROOT/scripts/self-improve.py" --log \
+    '{"type": "user_validation", "detail": "session completed"}' \
+    2>/dev/null &
 fi
 
 # Check if any source files were modified this session

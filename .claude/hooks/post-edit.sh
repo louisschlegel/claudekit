@@ -1,26 +1,24 @@
 #!/bin/bash
-# Hook: PostToolUse (Write/Edit) — Quality guards
+# Hook: PostToolUse(Edit|Write) — Guards qualité
 # Auto-portable via BASH_SOURCE
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 INPUT=$(cat)
-TOOL=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null || echo "")
+FILE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null || echo "")
 
-if [[ "$TOOL" != "Write" && "$TOOL" != "Edit" ]]; then
-    exit 0
-fi
+ERRORS=''
+WARNINGS=''
 
-FILE=$(echo "$INPUT" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-inp = d.get('tool_input', {})
-print(inp.get('file_path', inp.get('path', '')))
-" 2>/dev/null || echo "")
-
-if [ -z "$FILE" ]; then
-    exit 0
+# ── Python: ruff lint ──────────────────────────────────
+if echo "$FILE" | grep -q "\.py$"; then
+  if command -v ruff &>/dev/null; then
+    RUFF_OUT=$(ruff check "$FILE" 2>&1)
+    if [ -n "$RUFF_OUT" ]; then
+      ERRORS="$ERRORS\n[ruff] $RUFF_OUT"
+    fi
+  fi
 fi
 
 # ── Sécurité: bloquer commit de fichiers .env ─────────────────────────────
@@ -35,7 +33,7 @@ print(json.dumps({
   exit 0
 fi
 
-# Python files: ruff lint
+# Python files: ruff lint (auto-fix)
 if [[ "$FILE" == *.py ]]; then
     if command -v ruff >/dev/null 2>&1; then
         ruff check "$FILE" --fix --quiet 2>/dev/null || true
@@ -54,11 +52,8 @@ fi
 
 # Shell scripts: bash syntax check
 if [[ "$FILE" == *.sh ]]; then
-    if bash -n "$FILE" 2>/tmp/bash_syntax_err; then
-        :
-    else
-        echo "Bash syntax error in $FILE:"
-        cat /tmp/bash_syntax_err
+    if ! bash -n "$FILE" 2>/tmp/bash_syntax_err; then
+        ERRORS="$ERRORS\n[bash -n] Syntax error in $FILE: $(cat /tmp/bash_syntax_err)"
     fi
 fi
 
@@ -105,5 +100,31 @@ for pattern in "${INJECTION_PATTERNS[@]}"; do
     ERRORS="$ERRORS\n[security] Pattern suspect détecté dans $FILE : '$pattern'"
   fi
 done
+
+# ── Output ───────────────────────────────────────────────────
+if [ -n "$ERRORS" ]; then
+  python3 -c "
+import json, sys
+msg = sys.argv[1]
+print(json.dumps({
+    'decision': 'block',
+    'reason': f'Guards qualité ont détecté des erreurs :\n{msg}'
+}))
+" "$ERRORS"
+  exit 0
+fi
+
+if [ -n "$WARNINGS" ]; then
+  python3 -c "
+import json, sys
+msg = sys.argv[1]
+print(json.dumps({
+    'hookSpecificOutput': {
+        'hookEventName': 'PostToolUse',
+        'additionalContext': f'⚠️  Avertissements qualité :\n{msg}'
+    }
+}))
+" "$WARNINGS"
+fi
 
 exit 0
