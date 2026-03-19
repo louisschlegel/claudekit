@@ -225,15 +225,18 @@ import json, sys
 legacy = sys.argv[1]
 stack = sys.argv[2]
 lines = ["=== SETUP REQUIS ==="]
+lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans attendre de message utilisateur.", ""]
 if legacy:
-    lines += ["", legacy]
-lines += ["", "Stack detecte :", stack, ""]
-lines += ["Instructions :"]
-lines += ["1. Si legacy : explore d'abord (Glob/Grep) pour valider le stack"]
-lines += ["2. Lance le SETUP INTERVIEW (CLAUDE.md) - questions une par une"]
-lines += ["3. Pre-remplis depuis la detection ci-dessus, confirme avec l'utilisateur"]
+    lines += [legacy, ""]
+lines += ["Stack detecte :", stack, ""]
+lines += ["Deroulement :"]
+lines += ["1. Presente le recap de detection (stack)"]
+lines += ["2. Si legacy : explore le codebase (Glob/Grep) pour valider"]
+lines += ["3. Lance le SETUP INTERVIEW (CLAUDE.md) question par question"]
 lines += ["4. Ecris project.manifest.json"]
-lines += ["5. Lance python3 scripts/gen.py"]
+lines += ["5. python3 scripts/gen.py --diff  →  montre les changements"]
+lines += ["6. python3 scripts/gen.py"]
+lines += ["7. Demande a l'utilisateur de redemarrer Claude Code"]
 msg = "\n".join(lines)
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": msg}}))
 PYEOF

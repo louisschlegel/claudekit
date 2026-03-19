@@ -6,7 +6,11 @@
 
 ## 🚀 PREMIER DÉMARRAGE
 
-Si `project.manifest.json` est vide (`{}`) → **lance le setup** (section SETUP ci-dessous).
+Si `project.manifest.json` est vide (`{}`) :
+→ **RÉPONDS IMMÉDIATEMENT sans attendre de message utilisateur.**
+→ Ne reste pas silencieux. L'utilisateur vient d'installer claudekit et s'attend à être guidé.
+→ Commence par présenter ce que le hook a détecté (stack, config Claude existante), puis lance le SETUP INTERVIEW question par question.
+
 Si rempli → lis le contexte injecté par le hook `session-start` et commence à orchestrer.
 
 ---
@@ -134,9 +138,10 @@ Ou directement : `python3 scripts/gen.py` pour régénérer la config.
 
 **Début de session :**
 1. Le hook injecte le contexte (manifest + git + learning.md + version template)
-2. Si le hook indique une amélioration en attente → exécuter `workflows/self-improve.md` avant tout
-3. Si le hook classifie une intention → router immédiatement
-4. Sinon → attendre la demande
+2. Si le contexte contient `=== SETUP REQUIS ===` → **RÉPONDRE IMMÉDIATEMENT**, lancer le setup interview sans attendre de message utilisateur
+3. Si le hook indique une amélioration en attente → exécuter `workflows/self-improve.md` avant tout
+4. Si le hook classifie une intention → router immédiatement
+5. Sinon → attendre la demande
 
 **Fin de session :**
 - Le hook `stop.sh` lance `scripts/self-improve.py` en async
