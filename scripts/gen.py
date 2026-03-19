@@ -31,7 +31,7 @@ GENERATED_HOOK_NAMES = {
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
     "notification.sh", "subagent-stop.sh", "observability.sh",
     "injection-defender.sh", "context-monitor.sh", "live-handoff.sh",
-    "stop-guard.sh",
+    "stop-guard.sh", "session-end.sh", "permission-auto.sh",
 }
 
 
@@ -1700,6 +1700,25 @@ def build_hooks(manifest: dict) -> dict:
             "type": "command",
             "command": "bash .claude/hooks/subagent-stop.sh",
             "timeout": 5
+        }]
+    }]
+
+    # SessionEnd — cleanup and telemetry
+    hooks["SessionEnd"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/session-end.sh",
+            "timeout": 5,
+            "async": True
+        }]
+    }]
+
+    # PermissionRequest — auto-approve safe patterns
+    hooks["PermissionRequest"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/permission-auto.sh",
+            "timeout": 3
         }]
     }]
 

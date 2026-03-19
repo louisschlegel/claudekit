@@ -1,0 +1,21 @@
+{
+  "name": "claudekit",
+  "version": "1.3.0",
+  "description": "Universal Claude Code template — auto-configuring, self-improving, with 22 agents, 28 workflows, 10 skills, 8 commands, and 15 hooks",
+  "author": "louisschlegel",
+  "repository": "https://github.com/louisschlegel/claudekit",
+  "license": "MIT",
+  "entrypoint": "scripts/gen.py",
+  "capabilities": {
+    "agents": true,
+    "skills": true,
+    "commands": true,
+    "hooks": true,
+    "mcpServers": false,
+    "lspServers": false,
+    "settings": true
+  },
+  "install": {
+    "postInstall": "python3 scripts/gen.py --quiet"
+  }
+}

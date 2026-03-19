@@ -1,3 +1,11 @@
+---
+name: architect
+description: Design, patterns, architecture decisions, trade-offs
+tools: [Read,Glob,Grep,Agent]
+model: opus
+memory: project
+---
+
 # Agent: Architect
 
 ## RÔLE
