@@ -225,15 +225,18 @@ import json, sys
 legacy = sys.argv[1]
 stack = sys.argv[2]
 lines = ["=== SETUP REQUIS ==="]
+lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans attendre de message utilisateur.", ""]
 if legacy:
-    lines += ["", legacy]
-lines += ["", "Stack detecte :", stack, ""]
-lines += ["Instructions :"]
-lines += ["1. Si legacy : explore d'abord (Glob/Grep) pour valider le stack"]
-lines += ["2. Lance le SETUP INTERVIEW (CLAUDE.md) - questions une par une"]
-lines += ["3. Pre-remplis depuis la detection ci-dessus, confirme avec l'utilisateur"]
+    lines += [legacy, ""]
+lines += ["Stack detecte :", stack, ""]
+lines += ["Deroulement :"]
+lines += ["1. Presente le recap de detection (stack)"]
+lines += ["2. Si legacy : explore le codebase (Glob/Grep) pour valider"]
+lines += ["3. Lance le SETUP INTERVIEW (CLAUDE.md) question par question"]
 lines += ["4. Ecris project.manifest.json"]
-lines += ["5. Lance python3 scripts/gen.py"]
+lines += ["5. python3 scripts/gen.py --diff  →  montre les changements"]
+lines += ["6. python3 scripts/gen.py"]
+lines += ["7. Demande a l'utilisateur de redemarrer Claude Code"]
 msg = "\n".join(lines)
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": msg}}))
 PYEOF
@@ -463,11 +466,63 @@ DEBT_COUNT=$(grep -r "TODO\|FIXME\|HACK\|XXX" \
   | wc -l | tr -d ' ')
 [ -n "$DEBT_COUNT" ] && [ "$DEBT_COUNT" -gt 0 ] 2>/dev/null && TECH_DEBT="$DEBT_COUNT fichier(s) contiennent des TODO/FIXME/HACK" || TECH_DEBT=""
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" <<'PYEOF'
+# ─── Signal 8 — Documentation disponible (Option A: auto-detect) ──────────────
+DOCS_LIST=$(python3 - "$PROJECT_ROOT" <<'PYDOCS'
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+docs = []
+for name in ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'ROADMAP.md', 'SECURITY.md']:
+    if (root / name).exists():
+        docs.append(name)
+for f in sorted(root.glob('*.pdf')):
+    docs.append(f.name + ' (PDF)')
+for folder in ['docs', 'doc', 'spec', 'specs', 'adr', 'ADR', 'architecture', 'design', 'wiki', 'documentation']:
+    d = root / folder
+    if d.is_dir():
+        for f in sorted(d.rglob('*')):
+            if f.suffix.lower() in ('.md', '.pdf', '.rst'):
+                rel = str(f.relative_to(root))
+                if not any(x in rel for x in ('.git', 'node_modules', 'vendor')):
+                    docs.append(rel + (' (PDF)' if f.suffix.lower() == '.pdf' else ''))
+print('\n'.join(docs[:30]))
+PYDOCS
+2>/dev/null || echo "")
+
+# ─── Signal 9 — Docs content injection (Option B: manifest.context.docs_paths) ─
+DOCS_CONTENT=$(echo "$MANIFEST" | python3 -c "
+import json, sys
+from pathlib import Path
+root = Path('$PROJECT_ROOT')
+manifest = json.load(sys.stdin)
+paths = manifest.get('context', {}).get('docs_paths', [])
+sections = []
+for p in paths:
+    f = root / p
+    if not f.exists():
+        sections.append(f'[{p}] → fichier non trouvé')
+        continue
+    if f.suffix.lower() == '.pdf':
+        sections.append(f'[{p}] → PDF (utilisez le tool Read pour accéder au contenu)')
+        continue
+    try:
+        lines = f.read_text(encoding='utf-8', errors='replace').splitlines()
+        preview = lines[:100]
+        content = '\n'.join(preview)
+        if len(lines) > 100:
+            content += f'\n... ({len(lines) - 100} lignes supplémentaires — utilisez Read pour la suite)'
+        sections.append(f'--- {p} ---\n{content}')
+    except Exception as e:
+        sections.append(f'[{p}] → erreur lecture: {e}')
+print('\n\n'.join(sections))
+" 2>/dev/null || echo "")
+
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
 old_branches, hot_files, pending_migrations = sys.argv[13:16]
+docs_list, docs_content = sys.argv[16:18]
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -506,6 +561,10 @@ if alerts:
 
 ctx += "\n".join(op_lines)
 
+if docs_list.strip():
+    ctx += f"\n\n=== DOCUMENTATION DISPONIBLE ===\n{docs_list}"
+if docs_content.strip():
+    ctx += f"\n\n=== CONTENU DOCS (context.docs_paths) ===\n{docs_content}"
 if rules:
     ctx += f"\n\nRegles custom:\n{rules}"
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
