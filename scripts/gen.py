@@ -29,6 +29,7 @@ HOOKS_DIR = ROOT / ".claude" / "hooks"
 GENERATED_HOOK_NAMES = {
     "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
+    "notification.sh", "subagent-stop.sh", "observability.sh",
 }
 
 
@@ -377,6 +378,150 @@ MODEL_ROUTING_MAP = {
     "opus":   "claude-opus-4-6",
     "haiku":  "claude-haiku-4-5-20251001",
 }
+
+
+# ─── .claudeignore generator ──────────────────────────────────────────────────
+
+def make_claudeignore(manifest: dict) -> str:
+    """Generate .claudeignore content based on the manifest stack."""
+    lines = [
+        "# .claudeignore — généré par gen.py depuis project.manifest.json",
+        "# Claude ignorera ces fichiers/dossiers lors de la lecture du codebase",
+        "",
+        "# Toujours ignorés",
+        ".git/",
+        ".template/",
+        "*.log",
+        "*.tmp",
+        "node_modules/",
+        ".DS_Store",
+    ]
+
+    stack = manifest.get("stack", {})
+    languages = [l.lower() for l in stack.get("languages", [])]
+    frameworks = [f.lower() for f in stack.get("frameworks", [])]
+
+    has_python = "python" in languages or any(
+        x in fw for fw in frameworks
+        for x in ("django", "flask", "fastapi", "celery", "airflow", "pytorch", "tensorflow")
+    )
+    has_js_ts = any(x in languages for x in ("javascript", "typescript")) or any(
+        x in fw for fw in frameworks
+        for x in ("react", "next", "vue", "nuxt", "angular", "svelte", "expo")
+    )
+    has_go = "go" in languages
+    has_rust = "rust" in languages
+    has_java = "java" in languages or any(
+        x in fw for fw in frameworks for x in ("spring", "quarkus", "micronaut")
+    )
+
+    if has_python:
+        lines += [
+            "",
+            "# Python",
+            ".venv/",
+            "__pycache__/",
+            "*.pyc",
+            "*.pyo",
+            "dist/",
+            "build/",
+            ".pytest_cache/",
+            "*.egg-info/",
+        ]
+
+    if has_js_ts:
+        lines += [
+            "",
+            "# JavaScript / TypeScript",
+            "node_modules/",
+            "dist/",
+            ".next/",
+            ".nuxt/",
+            "coverage/",
+            ".turbo/",
+        ]
+
+    if has_go:
+        lines += [
+            "",
+            "# Go",
+            "vendor/",
+        ]
+
+    if has_rust:
+        lines += [
+            "",
+            "# Rust",
+            "target/",
+        ]
+
+    if has_java:
+        lines += [
+            "",
+            "# Java",
+            "target/",
+            "build/",
+            ".gradle/",
+        ]
+
+    return "\n".join(lines) + "\n"
+
+
+# ─── Monorepo CLAUDE.md generator ─────────────────────────────────────────────
+
+def make_monorepo_claude_mds(manifest: dict) -> int:
+    """
+    Generate sub-directory CLAUDE.md files for monorepo packages.
+    Returns the number of CLAUDE.md files written.
+    """
+    stack = manifest.get("stack", {})
+    project_name = manifest.get("project", {}).get("name", "projet")
+    languages = stack.get("languages", [])
+    frameworks = stack.get("frameworks", [])
+    test_cmd = "npm test"  # default
+
+    # Guess test command from stack
+    if "python" in [l.lower() for l in languages]:
+        test_cmd = "pytest"
+    elif any(x in [f.lower() for f in frameworks] for x in ("jest", "vitest")):
+        test_cmd = "npm test"
+    elif "go" in [l.lower() for l in languages]:
+        test_cmd = "go test ./..."
+    elif "rust" in [l.lower() for l in languages]:
+        test_cmd = "cargo test"
+
+    lang_list = ", ".join(languages + frameworks) if (languages or frameworks) else "voir manifest"
+
+    package_dirs = []
+    for subdir in ("packages", "apps", "services"):
+        candidate = ROOT / subdir
+        if candidate.is_dir():
+            for pkg in sorted(candidate.iterdir()):
+                if pkg.is_dir() and not pkg.name.startswith("."):
+                    package_dirs.append(pkg)
+
+    count = 0
+    for pkg_dir in package_dirs:
+        claude_md_path = pkg_dir / "CLAUDE.md"
+        if claude_md_path.exists():
+            continue  # Respect existing custom CLAUDE.md
+        dirname = pkg_dir.name
+        content = f"""# {dirname} — Subpackage
+
+Part of {project_name} monorepo. See root CLAUDE.md for global rules.
+
+## Stack specifics
+{lang_list}
+
+## Rules
+- Run tests from this directory: `{test_cmd}`
+- Imports: use workspace imports, not relative paths across packages
+"""
+        claude_md_path.write_text(content)
+        count += 1
+
+    return count
+
 
 # ─── Hook content generators ──────────────────────────────────────────────────
 
@@ -1126,6 +1271,120 @@ exit 0
 '''
 
 
+
+def make_notification(manifest: dict) -> str:
+    """Hook: Notification — Claude needs attention (input required or task complete)."""
+    return r'''#!/bin/bash
+# Hook: Notification — Claude needs attention (input required or task complete)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+PROJECT_NAME=$(python3 -c "
+import json
+from pathlib import Path
+manifest = Path('$PROJECT_ROOT/project.manifest.json')
+if manifest.exists():
+    d = json.loads(manifest.read_text())
+    print(d.get('project', {}).get('name', 'claudekit'))
+else:
+    print('claudekit')
+" 2>/dev/null || echo "claudekit")
+
+INPUT=$(cat)
+MESSAGE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','Claude needs your attention'))" 2>/dev/null || echo "Claude needs your attention")
+
+# macOS
+if command -v osascript &>/dev/null; then
+  osascript -e "display notification \"$MESSAGE\" with title \"$PROJECT_NAME\"" 2>/dev/null &
+# Linux
+elif command -v notify-send &>/dev/null; then
+  notify-send "$PROJECT_NAME" "$MESSAGE" 2>/dev/null &
+fi
+
+# Audio (macOS)
+if command -v afplay &>/dev/null; then
+  afplay /System/Library/Sounds/Glass.aiff 2>/dev/null &
+elif command -v paplay &>/dev/null; then
+  paplay /usr/share/sounds/freedesktop/stereo/message.oga 2>/dev/null &
+fi
+
+exit 0
+'''
+
+
+def make_subagent_stop(manifest: dict) -> str:
+    """Hook: SubagentStop — log subagent completion for observability."""
+    return r'''#!/bin/bash
+# Hook: SubagentStop — log subagent completion for observability
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+INPUT=$(cat)
+
+python3 - <<PYEOF 2>/dev/null
+import json, time
+from pathlib import Path
+
+data = json.loads("""$INPUT""") if """$INPUT""".strip() else {}
+log_path = Path("$PROJECT_ROOT/.template/agent-events.jsonl")
+log_path.parent.mkdir(exist_ok=True)
+
+entry = {
+    "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+    "event": "SubagentStop",
+    "agent_id": data.get("agent_id", "unknown"),
+    "duration_ms": data.get("duration_ms"),
+}
+with open(log_path, "a") as f:
+    f.write(json.dumps(entry) + "\n")
+PYEOF
+
+exit 0
+'''
+
+
+def make_observability(manifest: dict) -> str:
+    """Hook: PostToolUse — append tool events to .template/agent-events.jsonl."""
+    return r'''#!/bin/bash
+# Hook: PostToolUse — append tool events to .template/agent-events.jsonl
+# Lightweight observability: tracks tool usage without blocking
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null || echo "")
+
+# Only log Edit, Write, Bash — skip Read to avoid noise
+if [[ "$TOOL_NAME" != "Edit" && "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Bash" && "$TOOL_NAME" != "MultiEdit" ]]; then
+  exit 0
+fi
+
+python3 - <<PYEOF 2>/dev/null
+import json, time, sys
+from pathlib import Path
+
+try:
+    tool = "$TOOL_NAME"
+    log_path = Path("$PROJECT_ROOT/.template/agent-events.jsonl")
+    log_path.parent.mkdir(exist_ok=True)
+    entry = {
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "event": "PostToolUse",
+        "tool": tool,
+    }
+    with open(log_path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+except:
+    pass
+PYEOF
+
+exit 0
+'''
+
+
 # ─── Settings generator ───────────────────────────────────────────────────────
 
 def _add_perms(perms: list, source_dict: dict, key: str):
@@ -1266,18 +1525,25 @@ def build_hooks(manifest: dict) -> dict:
         }]
     }]
 
-    # PostToolUse — quality guards (si au moins un guard actif)
+    # PostToolUse — quality guards + observability
     guards = manifest.get("guards", {})
+    post_tool_hooks = []
     if any(guards.values()):
-        hooks["PostToolUse"] = [{
-            "matcher": "Edit|Write",
-            "hooks": [{
-                "type": "command",
-                "command": "bash .claude/hooks/post-edit.sh",
-                "timeout": 30,
-                "statusMessage": "Guards qualité en cours..."
-            }]
-        }]
+        post_tool_hooks.append({
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit.sh",
+            "timeout": 30,
+            "statusMessage": "Guards qualité en cours..."
+        })
+    post_tool_hooks.append({
+        "type": "command",
+        "command": "bash .claude/hooks/observability.sh",
+        "timeout": 3
+    })
+    hooks["PostToolUse"] = [{
+        "matcher": "Edit|Write|Bash|MultiEdit",
+        "hooks": post_tool_hooks
+    }]
 
     # Stop (toujours)
     hooks["Stop"] = [{
@@ -1306,6 +1572,24 @@ def build_hooks(manifest: dict) -> dict:
             "command": "bash .claude/hooks/pre-compact.sh",
             "timeout": 10,
             "statusMessage": "Sauvegarde du contexte avant compaction..."
+        }]
+    }]
+
+    # Notification — Claude needs attention
+    hooks["Notification"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/notification.sh",
+            "timeout": 5
+        }]
+    }]
+
+    # SubagentStop — log subagent completion for observability
+    hooks["SubagentStop"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/subagent-stop.sh",
+            "timeout": 5
         }]
     }]
 
@@ -1457,6 +1741,9 @@ def _build_generated_files(manifest: dict) -> dict:
         files[".claude/hooks/post-edit.sh"] = make_post_edit(manifest)
 
     files[".claude/hooks/stop.sh"] = make_stop(manifest)
+    files[".claude/hooks/notification.sh"] = make_notification(manifest)
+    files[".claude/hooks/subagent-stop.sh"] = make_subagent_stop(manifest)
+    files[".claude/hooks/observability.sh"] = make_observability(manifest)
 
     mcp_servers = build_mcp_servers(manifest)
     if mcp_servers:
@@ -1620,6 +1907,18 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     (HOOKS_DIR / "stop.sh").chmod(0o755)
     hooks_generated.append("stop.sh")
 
+    (HOOKS_DIR / "notification.sh").write_text(generated[".claude/hooks/notification.sh"])
+    (HOOKS_DIR / "notification.sh").chmod(0o755)
+    hooks_generated.append("notification.sh")
+
+    (HOOKS_DIR / "subagent-stop.sh").write_text(generated[".claude/hooks/subagent-stop.sh"])
+    (HOOKS_DIR / "subagent-stop.sh").chmod(0o755)
+    hooks_generated.append("subagent-stop.sh")
+
+    (HOOKS_DIR / "observability.sh").write_text(generated[".claude/hooks/observability.sh"])
+    (HOOKS_DIR / "observability.sh").chmod(0o755)
+    hooks_generated.append("observability.sh")
+
     # Install pre-push git hook (symlink or copy)
     pre_push_src = HOOKS_DIR / "pre-push.sh"
     if pre_push_src.exists():
@@ -1680,8 +1979,20 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     if gitignore_path.exists():
         gitignore_content = gitignore_path.read_text()
         if "!AGENTS.md" not in gitignore_content:
-            # Append the negation rule if not already present
             gitignore_path.write_text(gitignore_content.rstrip() + "\n\n# Multi-tool compat (committed)\n!AGENTS.md\n")
+
+    # Generate .claudeignore
+    claudeignore_content = make_claudeignore(manifest)
+    claudeignore_path = ROOT / ".claudeignore"
+    claudeignore_path.write_text(claudeignore_content)
+    print(f"[ok] .claudeignore generated")
+
+    # Generate monorepo CLAUDE.md files (only when monorepo_tools is set)
+    monorepo_tools = manifest.get("stack", {}).get("monorepo_tools", [])
+    if monorepo_tools:
+        n = make_monorepo_claude_mds(manifest)
+        if n > 0:
+            print(f"[ok] Monorepo CLAUDE.md generated for {n} packages")
 
     # Summary
     stack = manifest.get("stack", {})
