@@ -117,6 +117,25 @@ PYEOF
   exit 0
 fi
 
+# ─── Auto-regen si manifest a changé depuis dernière gen ─────────────────────
+HASH_FILE="$PROJECT_ROOT/.template/manifest.hash"
+MANIFEST_FILE="$PROJECT_ROOT/project.manifest.json"
+CURRENT_HASH=$(python3 -c "import hashlib; print(hashlib.md5(open('$MANIFEST_FILE','rb').read()).hexdigest())" 2>/dev/null || echo "")
+STORED_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "")
+
+if [ -n "$CURRENT_HASH" ] && [ "$CURRENT_HASH" != "$STORED_HASH" ]; then
+  python3 "$PROJECT_ROOT/scripts/gen.py" --quiet 2>/dev/null && \
+    echo "$CURRENT_HASH" > "$HASH_FILE" && \
+    REGEN_NOTE="⚡ project.manifest.json modifié — config régénérée automatiquement." || \
+    REGEN_NOTE="⚠️  gen.py a échoué au démarrage — vérifier project.manifest.json."
+fi
+
+# ─── Check dépendances recommandées ──────────────────────────────────────────
+MISSING_DEPS=""
+if [[ "$(uname)" == "Darwin" ]]; then
+  command -v terminal-notifier &>/dev/null || MISSING_DEPS="${MISSING_DEPS}\n- terminal-notifier (brew install terminal-notifier) — évite que les notifs ouvrent Script Editor"
+fi
+
 # ─── Cas 2 : manifest rempli → injecter le contexte ──────────────────────────
 MANIFEST=$(cat "$PROJECT_ROOT/project.manifest.json" 2>/dev/null || echo "{}")
 CUSTOM_RULES=$(echo "$MANIFEST" | python3 -c "
@@ -343,7 +362,7 @@ print(f'~\${cost:.3f} (last 5 sessions: {total_input:,} in + {total_output:,} ou
 " 2>/dev/null || echo "")
 fi
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$AGENT_MODE" "$LAST_USAGE" <<'PYEOF'
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$AGENT_MODE" "$LAST_USAGE" "${REGEN_NOTE:-}" "${MISSING_DEPS:-}" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
@@ -352,6 +371,8 @@ docs_list, docs_content = sys.argv[16:18]
 compact_focus = sys.argv[18] if len(sys.argv) > 18 else ""
 agent_mode = sys.argv[19] if len(sys.argv) > 19 else "mono"
 last_usage = sys.argv[20] if len(sys.argv) > 20 else ""
+regen_note = sys.argv[21] if len(sys.argv) > 21 else ""
+missing_deps = sys.argv[22] if len(sys.argv) > 22 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -399,5 +420,14 @@ if rules:
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
 if compact_focus:
     ctx += f"\n\nContexte compact (focus) : {compact_focus}"
+ctx += f"\nAgent mode: {agent_mode} ({'parallel worktrees for large tasks' if agent_mode == 'team' else 'single agent'})"
+if last_usage:
+    ctx += f"\nCost estimate: {last_usage}"
+if regen_note:
+    ctx += f"\n\n{regen_note}"
+if missing_deps.strip():
+    import re
+    deps = [d.strip() for d in re.split(r'\\n', missing_deps) if d.strip()]
+    ctx += f"\n\n=== DÉPENDANCES RECOMMANDÉES MANQUANTES ===\n" + "\n".join(deps)
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF
