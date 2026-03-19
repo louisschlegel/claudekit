@@ -66,4 +66,5 @@ learning.md
 .template/session-*.md
 .template/usage.jsonl
 .template/agent-events.jsonl
+.template/manifest.hash
 .claude/worktrees/
