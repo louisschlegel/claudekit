@@ -80,7 +80,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Hooks custom (tout ce qui n'est pas géré par claudekit)
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh manifest-regen.sh"
   if [ -d "$dst/.claude/hooks" ]; then
     for hook in "$dst/.claude/hooks"/*.sh; do
       [ -f "$hook" ] || continue
@@ -142,6 +142,7 @@ copy_files() {
   cp "$src/.claude/hooks/session-start.sh" "$dst/.claude/hooks/session-start.sh"
   cp "$src/.claude/hooks/user-prompt-submit.sh" "$dst/.claude/hooks/user-prompt-submit.sh"
   cp "$src/.claude/hooks/pre-push.sh" "$dst/.claude/hooks/pre-push.sh"
+  cp "$src/.claude/hooks/manifest-regen.sh" "$dst/.claude/hooks/manifest-regen.sh"
   # Les hooks custom (non-claudekit) dans hooks/ ne sont pas touchés
 
   # Agents — cp -n : n'écrase pas les agents existants (custom ou modifiés)

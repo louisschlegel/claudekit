@@ -30,6 +30,7 @@ GENERATED_HOOK_NAMES = {
     "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
     "notification.sh", "subagent-stop.sh", "observability.sh",
+    "manifest-regen.sh",
 }
 
 
@@ -1358,8 +1359,10 @@ else:
 INPUT=$(cat)
 MESSAGE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','Claude needs your attention'))" 2>/dev/null || echo "Claude needs your attention")
 
-# macOS
-if command -v osascript &>/dev/null; then
+# macOS — prefer terminal-notifier (avoids opening Script Editor on click)
+if command -v terminal-notifier &>/dev/null; then
+  terminal-notifier -title "$PROJECT_NAME" -message "$MESSAGE" -sender "com.apple.Terminal" 2>/dev/null &
+elif command -v osascript &>/dev/null; then
   osascript -e "display notification \"$MESSAGE\" with title \"$PROJECT_NAME\"" 2>/dev/null &
 # Linux
 elif command -v notify-send &>/dev/null; then
@@ -1372,6 +1375,36 @@ if command -v afplay &>/dev/null; then
 elif command -v paplay &>/dev/null; then
   paplay /usr/share/sounds/freedesktop/stereo/message.oga 2>/dev/null &
 fi
+
+exit 0
+'''
+
+
+def make_manifest_regen(manifest: dict) -> str:
+    """Hook: PostToolUse on project.manifest.json — auto-reruns gen.py."""
+    return r'''#!/bin/bash
+# Hook: manifest-regen — re-runs gen.py when project.manifest.json is edited
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+# Only trigger when project.manifest.json was the file edited
+INPUT=$(cat)
+FILE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null || echo "")
+
+if ! echo "$FILE" | grep -q "project\.manifest\.json$"; then
+  exit 0
+fi
+
+# Validate JSON before regenerating
+python3 -c "import json; json.load(open('$PROJECT_ROOT/project.manifest.json'))" 2>/dev/null || {
+  echo '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "⚠️  project.manifest.json: JSON invalide — corrige la syntaxe avant que gen.py puisse régénérer la config."}}'
+  exit 0
+}
+
+# Run gen.py silently
+cd "$PROJECT_ROOT" && python3 scripts/gen.py --quiet 2>/dev/null && \
+  echo '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "✓ project.manifest.json modifié — config régénérée automatiquement (settings.local.json, .mcp.json, hooks)."}}'
 
 exit 0
 '''
@@ -1599,15 +1632,28 @@ def build_hooks(manifest: dict) -> dict:
             "timeout": 30,
             "statusMessage": "Guards qualité en cours..."
         })
-    post_tool_hooks.append({
-        "type": "command",
-        "command": "bash .claude/hooks/observability.sh",
-        "timeout": 3
-    })
-    hooks["PostToolUse"] = [{
-        "matcher": "Edit|Write|Bash|MultiEdit",
-        "hooks": post_tool_hooks
-    }]
+    automation = manifest.get("automation", {})
+    if automation.get("observability", True):
+        post_tool_hooks.append({
+            "type": "command",
+            "command": "bash .claude/hooks/observability.sh",
+            "timeout": 3
+        })
+    hooks["PostToolUse"] = [
+        {
+            "matcher": "Edit|Write|Bash|MultiEdit",
+            "hooks": post_tool_hooks
+        },
+        {
+            "matcher": "Edit|Write|MultiEdit",
+            "hooks": [{
+                "type": "command",
+                "command": "bash .claude/hooks/manifest-regen.sh",
+                "timeout": 15,
+                "statusMessage": "Manifest modifié — régénération de la config..."
+            }]
+        }
+    ]
 
     # Stop (toujours)
     hooks["Stop"] = [{
@@ -1639,23 +1685,25 @@ def build_hooks(manifest: dict) -> dict:
         }]
     }]
 
-    # Notification — Claude needs attention
-    hooks["Notification"] = [{
-        "hooks": [{
-            "type": "command",
-            "command": "bash .claude/hooks/notification.sh",
-            "timeout": 5
+    # Notification — Claude needs attention (désactivable)
+    if automation.get("notifications", True):
+        hooks["Notification"] = [{
+            "hooks": [{
+                "type": "command",
+                "command": "bash .claude/hooks/notification.sh",
+                "timeout": 5
+            }]
         }]
-    }]
 
-    # SubagentStop — log subagent completion for observability
-    hooks["SubagentStop"] = [{
-        "hooks": [{
-            "type": "command",
-            "command": "bash .claude/hooks/subagent-stop.sh",
-            "timeout": 5
+    # SubagentStop — log subagent completion (désactivable)
+    if automation.get("subagent_logging", True):
+        hooks["SubagentStop"] = [{
+            "hooks": [{
+                "type": "command",
+                "command": "bash .claude/hooks/subagent-stop.sh",
+                "timeout": 5
+            }]
         }]
-    }]
 
     return hooks
 
@@ -1808,6 +1856,7 @@ def _build_generated_files(manifest: dict) -> dict:
     files[".claude/hooks/notification.sh"] = make_notification(manifest)
     files[".claude/hooks/subagent-stop.sh"] = make_subagent_stop(manifest)
     files[".claude/hooks/observability.sh"] = make_observability(manifest)
+    files[".claude/hooks/manifest-regen.sh"] = make_manifest_regen(manifest)
 
     mcp_servers = build_mcp_servers(manifest)
     if mcp_servers:
@@ -1816,21 +1865,26 @@ def _build_generated_files(manifest: dict) -> dict:
     return files
 
 
-def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool = False, target: str | None = None):
-    print("gen.py — Generation de la config Claude Code")
-    print(f"   Root: {ROOT}")
+def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool = False, target: str | None = None, quiet: bool = False):
+    def log(*args, **kwargs):
+        if not quiet:
+            print(*args, **kwargs)
+
+    log("gen.py — Generation de la config Claude Code")
+    log(f"   Root: {ROOT}")
 
     # Load manifest
     if not MANIFEST_PATH.exists() or MANIFEST_PATH.read_text().strip() in ("{}", ""):
-        print("project.manifest.json est vide. Lance le setup dans Claude Code d'abord.")
-        print("   Dans Claude Code, tape : /setup ou demande a Claude de faire le setup.")
+        if not quiet:
+            print("project.manifest.json est vide. Lance le setup dans Claude Code d'abord.")
+            print("   Dans Claude Code, tape : /setup ou demande a Claude de faire le setup.")
         sys.exit(1)
 
     with open(MANIFEST_PATH) as f:
         manifest = json.load(f)
 
     project_name = manifest.get("project", {}).get("name", "Projet")
-    print(f"   Projet: {project_name}")
+    log(f"   Projet: {project_name}")
 
     # ── --target cursor : export .cursorrules + exit ───────────────────────────
     if target == "cursor":
@@ -1945,7 +1999,7 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     settings_content = generated[".claude/settings.local.json"]
     SETTINGS_PATH.write_text(settings_content)
     settings = json.loads(settings_content)
-    print(f"[ok] .claude/settings.local.json — {len(settings['permissions']['allow'])} permissions")
+    log(f"[ok] .claude/settings.local.json — {len(settings['permissions']['allow'])} permissions")
 
     hooks_generated = []
 
@@ -2007,17 +2061,21 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     (HOOKS_DIR / "pre-compact.sh").chmod(0o755)
     hooks_generated.append("pre-compact.sh")
 
-    print(f"[ok] Hooks generes : {', '.join(hooks_generated)}")
+    (HOOKS_DIR / "manifest-regen.sh").write_text(generated[".claude/hooks/manifest-regen.sh"])
+    (HOOKS_DIR / "manifest-regen.sh").chmod(0o755)
+    hooks_generated.append("manifest-regen.sh")
+
+    log(f"[ok] Hooks generes : {', '.join(hooks_generated)}")
 
     # Generate .mcp.json
     mcp_servers = build_mcp_servers(manifest)
     if mcp_servers:
         MCP_PATH.write_text(generated[".mcp.json"])
-        print(f"[ok] .mcp.json — {len(mcp_servers)} serveur(s) MCP : {list(mcp_servers.keys())}")
+        log(f"[ok] .mcp.json — {len(mcp_servers)} serveur(s) MCP : {list(mcp_servers.keys())}")
     else:
         if MCP_PATH.exists():
             MCP_PATH.unlink()
-        print("    Pas de MCP servers configures")
+        log("    Pas de MCP servers configures")
 
     # AGENTS.md — copy of CLAUDE.md for multi-tool compatibility (Cursor, Codex, Amp, Jules)
     claude_md_path = ROOT / "CLAUDE.md"
@@ -2025,7 +2083,7 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     if claude_md_path.exists():
         import shutil
         shutil.copy2(claude_md_path, agents_md_path)
-        print(f"[ok] AGENTS.md — copie de CLAUDE.md (compatibilite multi-tools)")
+        log(f"[ok] AGENTS.md — copie de CLAUDE.md (compatibilite multi-tools)")
 
     # .agents/ directory with README for multi-tool compat
     agents_dir = ROOT / ".agents"
@@ -2049,14 +2107,14 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     claudeignore_content = make_claudeignore(manifest)
     claudeignore_path = ROOT / ".claudeignore"
     claudeignore_path.write_text(claudeignore_content)
-    print(f"[ok] .claudeignore generated")
+    log(f"[ok] .claudeignore generated")
 
     # Generate monorepo CLAUDE.md files (only when monorepo_tools is set)
     monorepo_tools = manifest.get("stack", {}).get("monorepo_tools", [])
     if monorepo_tools:
         n = make_monorepo_claude_mds(manifest)
         if n > 0:
-            print(f"[ok] Monorepo CLAUDE.md generated for {n} packages")
+            log(f"[ok] Monorepo CLAUDE.md generated for {n} packages")
 
     # Summary
     stack = manifest.get("stack", {})
@@ -2066,20 +2124,20 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     else:
         active_agents = [k for k, v in agents.items() if v]
 
-    print()
-    print("===========================================")
-    print(f"  {project_name} — config generee avec succes")
-    print("===========================================")
-    print(f"  Stack    : {', '.join(stack.get('languages', []) + stack.get('frameworks', []))}")
-    print(f"  Guards   : {', '.join([k for k,v in guards.items() if v]) or 'aucun'}")
-    print(f"  Agents   : {', '.join(active_agents) or 'aucun'}")
-    print(f"  MCP      : {', '.join(mcp_servers.keys()) or 'aucun'}")
+    log()
+    log("===========================================")
+    log(f"  {project_name} — config generee avec succes")
+    log("===========================================")
+    log(f"  Stack    : {', '.join(stack.get('languages', []) + stack.get('frameworks', []))}")
+    log(f"  Guards   : {', '.join([k for k,v in guards.items() if v]) or 'aucun'}")
+    log(f"  Agents   : {', '.join(active_agents) or 'aucun'}")
+    log(f"  MCP      : {', '.join(mcp_servers.keys()) or 'aucun'}")
     native = manifest.get("claude_native_integrations", [])
-    print(f"  Native   : {', '.join(native) or 'aucun'}")
-    print(f"  Compat   : AGENTS.md généré (Cursor/Codex/Amp compatibilité)")
-    print()
-    print("  Redemarre Claude Code pour appliquer les changements.")
-    print()
+    log(f"  Native   : {', '.join(native) or 'aucun'}")
+    log(f"  Compat   : AGENTS.md généré (Cursor/Codex/Amp compatibilité)")
+    log()
+    log("  Redemarre Claude Code pour appliquer les changements.")
+    log()
 
 
 if __name__ == "__main__":
@@ -2107,10 +2165,15 @@ if __name__ == "__main__":
         default=None,
         help="Export optionnel vers un outil tiers. 'cursor' génère un .cursorrules et quitte.",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Supprime la sortie verbose (utile pour les hooks automatiques).",
+    )
     args = parser.parse_args()
 
     if args.dry_run and args.diff:
         print("Erreur : --dry-run et --diff sont mutuellement exclusifs.")
         sys.exit(1)
 
-    main(dry_run=args.dry_run, show_diff=args.diff, preserve_custom=args.preserve_custom, target=args.target)
+    main(dry_run=args.dry_run, show_diff=args.diff, preserve_custom=args.preserve_custom, target=args.target, quiet=args.quiet)

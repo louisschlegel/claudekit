@@ -76,7 +76,10 @@
   ],
   "automation": {
     "self_improve_every_n_sessions": 10,
-    "learning_file": "learning.md"
+    "learning_file": "learning.md",
+    "notifications": true,
+    "subagent_logging": true,
+    "observability": true
   },
   "security": {
     "secret_scan": true,
@@ -89,7 +92,7 @@
     "simple": "haiku"
   },
   "template": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source": "https://github.com/louisschlegel/claudekit"
   }
 }
