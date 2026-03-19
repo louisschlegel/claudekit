@@ -83,3 +83,12 @@ Output: Verdict (ship / needs fixes) + learning.md update.
 ```json
 {"status": "completed", "summary": "", "next_action": "", "artifacts": []}
 ```
+
+## CONTRAT DE SORTIE
+
+```
+STATUS: completed
+SUMMARY: [résumé des actions effectuées]
+ARTIFACTS: [fichiers créés ou modifiés]
+NEXT_ACTION: [prochaine étape recommandée ou none]
+```

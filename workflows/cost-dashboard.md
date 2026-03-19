@@ -38,3 +38,12 @@ Disponible sur https://platform.claude.com/docs/en/build-with-claude/claude-code
 ```json
 {"status": "completed", "summary": "", "next_action": "", "artifacts": []}
 ```
+
+## CONTRAT DE SORTIE
+
+```
+STATUS: completed
+SUMMARY: [résumé des actions effectuées]
+ARTIFACTS: [fichiers créés ou modifiés]
+NEXT_ACTION: [prochaine étape recommandée ou none]
+```

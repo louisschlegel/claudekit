@@ -48,3 +48,12 @@ Le hook `session-start.sh` injecte automatiquement le dernier `handoff.md` s'il 
 ```json
 {"status": "completed", "summary": "", "next_action": "", "artifacts": []}
 ```
+
+## CONTRAT DE SORTIE
+
+```
+STATUS: completed
+SUMMARY: [résumé des actions effectuées]
+ARTIFACTS: [fichiers créés ou modifiés]
+NEXT_ACTION: [prochaine étape recommandée ou none]
+```
