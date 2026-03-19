@@ -395,7 +395,15 @@ if [ -f "$PROJECT_ROOT/.template/handoff.md" ]; then
   HANDOFF=$(head -50 "$PROJECT_ROOT/.template/handoff.md" 2>/dev/null || echo "")
 fi
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$HANDOFF" <<'PYEOF'
+# ── Signal: environment detection ────────────────────────────────
+ENV_CONTEXT=""
+if [ -n "$REMOTE_CONTAINERS" ] || [ -f "/.dockerenv" ] || [ -n "$CODESPACES" ]; then
+  ENV_CONTEXT="🐳 Running in container/Codespaces"
+elif [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_TTY" ]; then
+  ENV_CONTEXT="🔌 Running via SSH — GUI notifications disabled"
+fi
+
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$HANDOFF" "$ENV_CONTEXT" <<'PYEOF'
 
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
@@ -404,6 +412,7 @@ old_branches, hot_files, pending_migrations = sys.argv[13:16]
 docs_list, docs_content = sys.argv[16:18]
 compact_focus = sys.argv[18] if len(sys.argv) > 18 else ""
 handoff = sys.argv[19] if len(sys.argv) > 19 else ""
+env_context = sys.argv[20] if len(sys.argv) > 20 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -453,6 +462,8 @@ if compact_focus:
     ctx += f"\n\nContexte compact (focus) : {compact_focus}"
 if handoff.strip():
     ctx += f"\n\n=== HANDOFF SESSION PRECEDENTE ===\n{handoff}"
+if env_context.strip():
+    ctx += f"\n\n=== ENVIRONMENT ===\n{env_context}"
 
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF

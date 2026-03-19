@@ -110,6 +110,27 @@ Ces règles s'appliquent **toujours**, aucun agent ne peut les override.
 
 ---
 
+## PLAN MODE
+
+Pour les tâches complexes (multi-fichiers, architecture, > 50 lignes) :
+- **Shift+Tab** active le Plan Mode (read-only, pas de code écrit)
+- Utilise-le pour explorer et planifier avant d'implémenter
+- Skip pour les changements simples (1 ligne, 1 fichier évident)
+- Après plan validé par l'utilisateur → implémenter
+
+---
+
+## GESTION DU CONTEXTE
+
+- **Compacte à 70%** d'utilisation du contexte (pas 90%) — utilise `/compact [focus]`
+- Entre deux tâches non liées → `/clear` pour repartir propre
+- **Règle des 2 corrections** : si tu corriges deux fois la même chose → `/clear` + reformuler
+- Pour les recherches dans la codebase → délègue à un subagent (économise 40% de tokens)
+- `/batch` : lance plusieurs tâches indépendantes en une commande
+- `/loop [interval]` : répète une tâche à intervalle régulier
+
+---
+
 ## LEGACY PROJECT SETUP
 
 Étape 0 : Auditer `.claude/settings.local.json`, `.mcp.json`, `.claude/hooks/` custom avant de copier quoi que ce soit.

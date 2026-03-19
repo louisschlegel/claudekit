@@ -95,6 +95,15 @@ if [ "$CHANGED" -gt "0" ] 2>/dev/null; then
   fi
 fi
 
+# Audio notification
+if [ "$CHANGED" -gt "0" ] 2>/dev/null; then
+  if command -v afplay &>/dev/null; then
+    afplay /System/Library/Sounds/Glass.aiff 2>/dev/null &
+  elif command -v paplay &>/dev/null; then
+    paplay /usr/share/sounds/freedesktop/stereo/complete.oga 2>/dev/null &
+  fi
+fi
+
 if [ "$CHANGED" -gt 0 ]; then
     python3 -c "
 import json

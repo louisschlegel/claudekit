@@ -61,6 +61,7 @@ INTENT_RULES = [
     ("improve-template",  ["améliore le template", "self-improve", "mets-toi à jour", "update template", "template improve"]),
     ("onboard",           ["setup", "initialise", "configure le projet", "onboard", "nouveau projet", "legacy"]),
     ("feature",           ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
+    ("riper",             ["riper", "research investigate plan execute review"]),
     ("question",          ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]
 
