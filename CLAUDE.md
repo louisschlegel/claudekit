@@ -58,8 +58,12 @@ Questions **une par une** :
 12. Déploiement auto sur release ? (oui/non)
 
 **Bloc 4 — Automatisations Claude**
-13. MCP servers : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`
-    *(gmail, google-calendar, canva = intégrations natives Claude.ai, pas de config nécessaire)*
+13. **MCP servers** (à installer, besoin d'un serveur) : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`
+    → Écrits dans `mcp_servers[]` + `.mcp.json` généré automatiquement
+
+    **Intégrations natives Claude.ai** (zéro config, déjà disponibles) : `gmail`, `google-calendar`, `canva`, `claude-in-chrome`
+    → Écrits dans `claude_native_integrations[]` — aucun serveur à installer, seulement les permissions sont auto-approuvées dans `settings.local.json`
+    → L'utilisateur choisit lesquelles activer ; les autres continuent à demander confirmation à chaque usage
 14. Guards : lint ? type-check ? test auto ? migrations ? i18n ?
 15. Workflows à activer : `feature`, `bugfix`, `hotfix`, `release`, `security-audit`, `dependency-update`, `dependency-audit`, `refactor`, `onboard`, `self-improve`, `db-migration`, `incident-response`, `performance-baseline`, `publish-package`, `api-design`, `a-b-test`, `data-quality`, `llm-eval`, `spec-to-project`, `code-review`, `monitoring-setup`, `cost-optimization`
 16. Agents à activer : `architect`, `reviewer`, `tester`, `deployer`, `explorer`, `security-auditor`, `debug-detective`, `doc-writer`, `performance-analyst`, `release-manager`, `data-engineer`, `ml-engineer`, `devops-engineer`, `cost-analyst`, `spec-reader`, `template-improver`
@@ -207,6 +211,19 @@ Ces règles s'appliquent **toujours**, aucun agent ne peut les override.
 
 ## 📦 LEGACY PROJECT SETUP
 
+### Étape 0 — Audit de la config Claude existante (OBLIGATOIRE)
+
+Avant de copier quoi que ce soit, vérifier s'il existe déjà une config Claude dans le projet :
+- `.claude/settings.local.json` → permissions custom à préserver ?
+- `.mcp.json` → serveurs MCP custom à préserver ?
+- `.claude/hooks/` → hooks custom à ne pas écraser ?
+
+**Présenter ce rapport à l'utilisateur et lui demander ce qu'il veut conserver.**
+Les hooks claudekit standard (session-start, pre-bash-guard, etc.) seront remplacés.
+Les hooks custom (tout autre `.sh`) ne sont jamais touchés par `gen.py`.
+
+### Étape 1 — Installation
+
 ```bash
 cd mon-projet-existant/
 cp -r ~/Desktop/template/.claude/ ./.claude/
@@ -221,6 +238,20 @@ cp -r ~/Desktop/template/workflows/ ./workflows/
 cp ~/Desktop/template/CLAUDE.md ./CLAUDE.md
 echo '{}' > project.manifest.json
 claude
+```
+
+### Étape 2 — Setup + génération
+
+Après le SETUP INTERVIEW :
+```bash
+# Voir les changements avant d'écrire
+python3 scripts/gen.py --diff
+
+# Fusionner les permissions/MCP custom de l'existant
+python3 scripts/gen.py --preserve-custom
+
+# Ou écraser complètement (si rien à préserver)
+python3 scripts/gen.py
 ```
 
 ---
