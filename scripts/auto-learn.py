@@ -8,12 +8,14 @@ Usage:
     python3 scripts/auto-learn.py --from-agent security-auditor --input '{...}'
     python3 scripts/auto-learn.py --extract-patterns  # analyse learning.md et propose des custom_rules
     python3 scripts/auto-learn.py --show-stats        # stats sur les apprentissages accumulés
+    python3 scripts/auto-learn.py --evolve            # liste les patterns éligibles et génère les skills
 """
 
 import argparse
 import json
 import re
 import sys
+import uuid
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -25,6 +27,170 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 LEARNING_MD = PROJECT_ROOT / "learning.md"
 MANIFEST = PROJECT_ROOT / "project.manifest.json"
+KNOWN_PATTERNS = PROJECT_ROOT / ".template" / "known-patterns.json"
+SKILLS_DIR = PROJECT_ROOT / ".claude" / "skills"
+
+# ─── Normalisation ───────────────────────────────────────────────────────────
+
+def _normalize(text: str) -> str:
+    """Normalise un texte pour la comparaison : lowercase + suppression ponctuation + strip."""
+    text = text.lower().strip()
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    return " ".join(text.split())
+
+
+# ─── Confidence scoring ──────────────────────────────────────────────────────
+
+CONFIDENCE_BY_FREQUENCY = {1: 0.5, 2: 0.75}
+CONFIDENCE_MAX = 0.95
+CONFIDENCE_PROMOTION_THRESHOLD = 0.85
+
+
+def _confidence_from_frequency(freq: int) -> float:
+    """Calcule le score de confiance selon la fréquence d'observation."""
+    if freq <= 1:
+        return CONFIDENCE_BY_FREQUENCY[1]
+    if freq == 2:
+        return CONFIDENCE_BY_FREQUENCY[2]
+    return CONFIDENCE_MAX
+
+
+def load_known_patterns() -> dict:
+    """Charge .template/known-patterns.json (crée la structure si absent/vide)."""
+    if KNOWN_PATTERNS.exists():
+        try:
+            data = json.loads(KNOWN_PATTERNS.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and "patterns" in data:
+                return data
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return {"patterns": [], "last_updated": None}
+
+
+def save_known_patterns(data: dict) -> None:
+    data["last_updated"] = TODAY
+    KNOWN_PATTERNS.parent.mkdir(parents=True, exist_ok=True)
+    KNOWN_PATTERNS.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _slugify(text: str) -> str:
+    """Génère un slug valide pour nom de fichier."""
+    text = text.lower().strip()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    text = text.strip("-")
+    return text[:60] if text else "pattern"
+
+
+def record_pattern(text: str) -> dict:
+    """
+    Enregistre ou incrémente un pattern dans known-patterns.json.
+    Retourne le pattern mis à jour.
+    """
+    data = load_known_patterns()
+    patterns = data.get("patterns", [])
+
+    # Normalisation pour comparaison
+    normalized = _normalize(text)
+
+    # Chercher un pattern existant avec le même texte normalisé
+    existing = None
+    for p in patterns:
+        if _normalize(p.get("text", "")) == normalized:
+            existing = p
+            break
+
+    if existing:
+        existing["frequency"] = existing.get("frequency", 1) + 1
+        existing["confidence"] = _confidence_from_frequency(existing["frequency"])
+        existing["last_seen"] = TODAY
+    else:
+        existing = {
+            "id": str(uuid.uuid4()),
+            "text": text,
+            "frequency": 1,
+            "confidence": _confidence_from_frequency(1),
+            "first_seen": TODAY,
+            "last_seen": TODAY,
+            "promoted_to_skill": False,
+            "skill_path": None,
+        }
+        patterns.append(existing)
+
+    data["patterns"] = patterns
+    save_known_patterns(data)
+    return existing
+
+
+def evolve_to_skill(pattern: dict) -> str:
+    """
+    Crée un fichier .claude/skills/{slug}.md documentant le pattern.
+    Retourne le chemin du fichier créé.
+    """
+    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    slug = _slugify(pattern.get("text", "pattern"))
+    skill_path = SKILLS_DIR / f"{slug}.md"
+
+    content = (
+        f"---\n"
+        f"name: {slug}\n"
+        f"confidence: {pattern.get('confidence', 0.0)}\n"
+        f"frequency: {pattern.get('frequency', 1)}\n"
+        f"first_seen: {pattern.get('first_seen', TODAY)}\n"
+        f"promoted_on: {TODAY}\n"
+        f"---\n\n"
+        f"# Skill: {pattern.get('text', '')}\n\n"
+        f"## Description\n\n"
+        f"{pattern.get('text', '')}\n\n"
+        f"## Contexte\n\n"
+        f"Pattern observé {pattern.get('frequency', 1)} fois depuis le {pattern.get('first_seen', TODAY)}. "
+        f"Score de confiance : {pattern.get('confidence', 0.0):.2f}.\n\n"
+        f"## Application\n\n"
+        f"- Appliquer ce pattern systématiquement dans le contexte détecté\n"
+        f"- Vérifier la cohérence avec les conventions existantes du projet\n"
+    )
+
+    skill_path.write_text(content, encoding="utf-8")
+    return str(skill_path)
+
+
+def evolve_patterns() -> None:
+    """
+    Liste les patterns éligibles (confidence >= 0.85) et génère les skills
+    pour ceux qui ne sont pas encore promus.
+    """
+    data = load_known_patterns()
+    patterns = data.get("patterns", [])
+
+    eligible = [
+        p for p in patterns
+        if p.get("confidence", 0.0) >= CONFIDENCE_PROMOTION_THRESHOLD
+        and not p.get("promoted_to_skill", False)
+    ]
+
+    if not eligible:
+        print(f"[auto-learn] Aucun pattern éligible à la promotion (seuil: {CONFIDENCE_PROMOTION_THRESHOLD}).")
+        already = [p for p in patterns if p.get("promoted_to_skill", False)]
+        if already:
+            print(f"[auto-learn] {len(already)} skill(s) déjà promus :")
+            for p in already:
+                print(f"  - {p.get('text', '?')} → {p.get('skill_path', '?')}")
+        return
+
+    print(f"[auto-learn] {len(eligible)} pattern(s) éligible(s) à la promotion en skill :\n")
+    for i, p in enumerate(eligible, 1):
+        print(f"  {i}. [{p.get('confidence', 0):.2f}] (×{p.get('frequency', 1)}) {p.get('text', '?')}")
+
+    print()
+    for p in eligible:
+        skill_path = evolve_to_skill(p)
+        p["promoted_to_skill"] = True
+        p["skill_path"] = skill_path
+        print(f"[auto-learn] Skill créé : {skill_path}")
+
+    save_known_patterns(data)
+    print(f"\n[auto-learn] {len(eligible)} skill(s) générés dans {SKILLS_DIR}")
+
 
 # ─── Sections de learning.md ─────────────────────────────────────────────────
 
@@ -457,13 +623,6 @@ def show_stats() -> None:
 
 # ─── --deduplicate ────────────────────────────────────────────────────────────
 
-def _normalize(text: str) -> str:
-    """Normalise un texte pour la comparaison : lowercase + suppression ponctuation + strip."""
-    text = text.lower().strip()
-    text = text.translate(str.maketrans("", "", string.punctuation))
-    return " ".join(text.split())
-
-
 def deduplicate_entries(learning_file: Path | None = None) -> int:
     """
     Lit learning.md, détecte les entrées en double dans chaque section (même texte normalisé),
@@ -625,6 +784,16 @@ def main() -> None:
         action="store_true",
         help="Supprimer les entrées en double dans learning.md (garde la plus récente)",
     )
+    parser.add_argument(
+        "--record-pattern",
+        metavar="TEXT",
+        help="Enregistre ou incrémente un pattern dans .template/known-patterns.json",
+    )
+    parser.add_argument(
+        "--evolve",
+        action="store_true",
+        help=f"Liste les patterns avec confidence >= {CONFIDENCE_PROMOTION_THRESHOLD} et génère les skills .claude/skills/",
+    )
 
     args = parser.parse_args()
 
@@ -640,8 +809,17 @@ def main() -> None:
         deduplicate_entries()
         return
 
+    if args.record_pattern:
+        p = record_pattern(args.record_pattern)
+        print(f"[auto-learn] Pattern enregistré : confidence={p['confidence']:.2f} frequency={p['frequency']} — {p['text'][:80]}")
+        return
+
+    if args.evolve:
+        evolve_patterns()
+        return
+
     if not args.from_agent:
-        parser.error("--from-agent est requis (sauf avec --extract-patterns ou --show-stats)")
+        parser.error("--from-agent est requis (sauf avec --extract-patterns, --show-stats, --evolve)")
 
     if not args.input:
         parser.error("--input est requis avec --from-agent")
