@@ -6,6 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 INPUT=$(cat)
+
+# Seulement Edit et Write — ignorer Read, Bash, etc.
+TOOL_NAME=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null || echo "")
+if [[ "$TOOL_NAME" != "Edit" && "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "MultiEdit" ]]; then
+  exit 0
+fi
+
 FILE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null || echo "")
 
 ERRORS=''
@@ -84,6 +91,11 @@ PYEOF
 fi
 
 # ── Scan: prompt injection / secrets hardcodés ────────────────────────────
+# Exclure les fichiers claudekit source (hooks/ et scripts/ contiennent ces patterns comme chaînes légitimes)
+if echo "$FILE" | grep -qE "(\.claude/hooks/|/scripts/gen\.py|/scripts/auto-learn\.py)"; then
+  INJECTION_SKIP=true
+fi
+
 INJECTION_PATTERNS=(
   "ignore previous instructions"
   "ignore all instructions"
@@ -96,6 +108,7 @@ INJECTION_PATTERNS=(
 
 FILE_CONTENT=$(cat "$FILE" 2>/dev/null || echo "")
 for pattern in "${INJECTION_PATTERNS[@]}"; do
+  if [ "${INJECTION_SKIP:-false}" = "true" ]; then break; fi
   if echo "$FILE_CONTENT" | grep -qiE "$pattern" 2>/dev/null; then
     ERRORS="$ERRORS\n[security] Pattern suspect détecté dans $FILE : '$pattern'"
   fi
