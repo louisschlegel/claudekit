@@ -62,7 +62,7 @@ root = sys.argv[1]
 hook = open(f"{root}/.claude/hooks/user-prompt-submit.sh").read()
 hook_intents = set(re.findall(r'\("(\w[\w-]*)"\s*,', hook))
 
-claude = open(f"{root}/CLAUDE.md").read()
+claude = open(f"{root}/CLAUDE.md").read() + open(f"{root}/.claude/docs/workflows-table.md").read()
 claude_intents = set(re.findall(r'`(\w[\w-]*)`\s*\|.*workflows/', claude))
 
 special = {'question', 'other', 'improve-template'}
