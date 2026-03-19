@@ -1,5 +1,5 @@
 {
-  "_comment": "Exemple de manifest complet — copier/adapter après setup. Les champs _comment sont ignorés.",
+  "_comment": "Exemple de manifest complet \u2014 copier/adapter apr\u00e8s setup. Les champs _comment sont ignor\u00e9s.",
   "project": {
     "name": "mon-projet",
     "description": "App mobile de gestion de planning personnel avec IA",
@@ -8,12 +8,30 @@
     "language": "fr"
   },
   "stack": {
-    "languages": ["python", "typescript"],
-    "frameworks": ["fastapi", "react-native", "expo"],
-    "databases": ["postgresql", "redis"],
-    "runtime": ["docker"],
-    "testing": ["pytest", "jest"],
-    "linting": ["ruff", "eslint"]
+    "languages": [
+      "python",
+      "typescript"
+    ],
+    "frameworks": [
+      "fastapi",
+      "react-native",
+      "expo"
+    ],
+    "databases": [
+      "postgresql",
+      "redis"
+    ],
+    "runtime": [
+      "docker"
+    ],
+    "testing": [
+      "pytest",
+      "jest"
+    ],
+    "linting": [
+      "ruff",
+      "eslint"
+    ]
   },
   "workflow": {
     "git_strategy": "feature-branch",
@@ -21,14 +39,21 @@
     "ci": "github-actions",
     "deploy_target": "vps-ovh",
     "deploy_command": "docker compose -f docker-compose.prod.yml up -d --build",
-    "environments": ["staging", "production"],
+    "environments": [
+      "staging",
+      "production"
+    ],
     "health_check_url": "https://api.mon-projet.com/health",
     "smoke_tests": "pytest tests/smoke/ -q",
     "staging_validation": true,
     "github_releases": true,
     "auto_deploy": false
   },
-  "mcp_servers": ["filesystem", "github", "postgres"],
+  "mcp_servers": [
+    "filesystem",
+    "github",
+    "postgres"
+  ],
   "guards": {
     "lint": true,
     "type_check": true,
@@ -37,29 +62,55 @@
     "i18n_check": false
   },
   "permissions": {
-    "extra_bash": ["stripe", "ffmpeg"],
-    "web_domains": ["api.stripe.com", "api.openai.com"]
+    "extra_bash": [
+      "stripe",
+      "ffmpeg"
+    ],
+    "web_domains": [
+      "api.stripe.com",
+      "api.openai.com"
+    ]
   },
   "agents": [
-    "architect", "reviewer", "tester", "security-auditor", "debug-detective",
-    "deployer", "explorer", "doc-writer", "performance-analyst", "release-manager",
-    "cost-analyst", "spec-reader", "devops-engineer", "template-improver"
+    "architect",
+    "reviewer",
+    "tester",
+    "security-auditor",
+    "debug-detective",
+    "deployer",
+    "explorer",
+    "doc-writer",
+    "performance-analyst",
+    "release-manager",
+    "cost-analyst",
+    "spec-reader",
+    "devops-engineer",
+    "template-improver"
   ],
   "workflows": [
-    "feature", "bugfix", "hotfix", "release", "security-audit",
-    "dependency-update", "dependency-audit", "refactor", "onboard", "self-improve",
-    "db-migration", "incident-response", "api-design", "code-review",
-    "monitoring-setup", "cost-optimization", "spec-to-project"
+    "feature",
+    "bugfix",
+    "hotfix",
+    "release",
+    "security-audit",
+    "dependency-update",
+    "dependency-audit",
+    "refactor",
+    "onboard",
+    "self-improve",
+    "db-migration",
+    "incident-response",
+    "api-design",
+    "code-review",
+    "monitoring-setup",
+    "cost-optimization",
+    "spec-to-project"
   ],
   "automation": {
     "self_improve_every_n_sessions": 5,
     "learning_file": "learning.md",
-    "notifications": true,
-    "_comment_notifications": "Desktop + audio notification quand Claude a besoin d'attention (macOS/Linux)",
-    "subagent_logging": true,
-    "_comment_subagent_logging": "Log subagent completions to .template/agent-events.jsonl",
-    "observability": true,
-    "_comment_observability": "PostToolUse audit trail to .template/agent-events.jsonl"
+    "agent_mode": "mono",
+    "_comment_agent_mode": "mono (default, resource-efficient) | team (parallel worktrees, faster for large tasks)"
   },
   "security": {
     "scan_on_push": true,
@@ -71,13 +122,21 @@
     "provider": "none",
     "_comment_provider": "Options: none, terminal-notifier (macOS), notify-send (Linux), slack, email",
     "slack_channel": "#dev-alerts",
-    "on_events": ["deploy", "security_finding", "test_failure"]
+    "on_events": [
+      "deploy",
+      "security_finding",
+      "test_failure"
+    ]
   },
   "ml": {
-    "_comment": "Section optionnelle pour projets ML/AI — remplir si ml-engineer activé",
+    "_comment": "Section optionnelle pour projets ML/AI \u2014 remplir si ml-engineer activ\u00e9",
     "task_type": "classification",
     "_comment_task_type": "classification | regression | nlp | vision | timeseries | rag | generative | embedding | rl",
-    "frameworks": ["pytorch", "transformers", "scikit-learn"],
+    "frameworks": [
+      "pytorch",
+      "transformers",
+      "scikit-learn"
+    ],
     "experiment_tracking": "mlflow",
     "_comment_tracking": "mlflow | wandb | comet | neptune | none",
     "data_versioning": "dvc",
@@ -91,15 +150,15 @@
     "baseline_score": 0.72
   },
   "template": {
-    "version": "1.2.0",
+    "version": "1.1.0",
     "source": "https://github.com/louisschlegel/claudekit"
   },
   "context": {
     "learning_file": "learning.md",
     "custom_rules": [
-      "Ne jamais hardcoder de couleurs hex — utiliser les tokens du design system",
-      "Toujours valider les données Pydantic au niveau de l'API, pas dans les modèles",
-      "Chaque migration Django doit avoir un nom descriptif (pas auto-généré)"
+      "Ne jamais hardcoder de couleurs hex \u2014 utiliser les tokens du design system",
+      "Toujours valider les donn\u00e9es Pydantic au niveau de l'API, pas dans les mod\u00e8les",
+      "Chaque migration Django doit avoir un nom descriptif (pas auto-g\u00e9n\u00e9r\u00e9)"
     ]
   }
 }

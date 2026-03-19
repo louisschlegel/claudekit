@@ -343,15 +343,36 @@ d=json.load(sys.stdin)
 print(d.get('context',{}).get('compact_focus',''))
 " 2>/dev/null || echo "")
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "${REGEN_NOTE:-}" "${MISSING_DEPS:-}" <<'PYEOF'
+# ─── Signal 11 — Agent mode (manifest.automation.agent_mode) ─────────────────
+AGENT_MODE=$(echo "$MANIFEST" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('automation',{}).get('agent_mode','mono'))" 2>/dev/null || echo "mono")
+
+# ─── Signal 12 — Token usage from last session ────────────────────────────────
+LAST_USAGE=""
+USAGE_FILE="$PROJECT_ROOT/.template/usage.jsonl"
+if [ -f "$USAGE_FILE" ]; then
+  LAST_USAGE=$(tail -5 "$USAGE_FILE" 2>/dev/null | python3 -c "
+import json, sys
+lines = [l for l in sys.stdin if l.strip()]
+if not lines: exit()
+total_input = sum(json.loads(l).get('input_tokens', 0) for l in lines if l.strip())
+total_output = sum(json.loads(l).get('output_tokens', 0) for l in lines if l.strip())
+# Approximate cost: Sonnet input=\$3/Mtok, output=\$15/Mtok
+cost = (total_input * 3 + total_output * 15) / 1_000_000
+print(f'~\${cost:.3f} (last 5 sessions: {total_input:,} in + {total_output:,} out tokens)')
+" 2>/dev/null || echo "")
+fi
+
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$AGENT_MODE" "$LAST_USAGE" "${REGEN_NOTE:-}" "${MISSING_DEPS:-}" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
 old_branches, hot_files, pending_migrations = sys.argv[13:16]
 docs_list, docs_content = sys.argv[16:18]
 compact_focus = sys.argv[18] if len(sys.argv) > 18 else ""
-regen_note = sys.argv[19] if len(sys.argv) > 19 else ""
-missing_deps = sys.argv[20] if len(sys.argv) > 20 else ""
+agent_mode = sys.argv[19] if len(sys.argv) > 19 else "mono"
+last_usage = sys.argv[20] if len(sys.argv) > 20 else ""
+regen_note = sys.argv[21] if len(sys.argv) > 21 else ""
+missing_deps = sys.argv[22] if len(sys.argv) > 22 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -369,6 +390,9 @@ op_lines.append(f"Tests: {coverage}")
 op_lines.append(f"Securite: {'⚠️  ' + deps_alert if deps_alert else 'deps OK'}")
 op_lines.append(f"CI/CD: {ci_status if ci_status else 'non configuré'}")
 op_lines.append(f"Dette: {tech_debt if tech_debt else 'aucun TODO/FIXME détecté'}")
+op_lines.append(f"Agent mode: {agent_mode} ({'parallel worktrees recommended for large tasks' if agent_mode == 'team' else 'single agent'})")
+if last_usage:
+    op_lines.append(f"Token cost: {last_usage}")
 
 alerts = []
 if old_branches:
@@ -396,6 +420,9 @@ if rules:
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
 if compact_focus:
     ctx += f"\n\nContexte compact (focus) : {compact_focus}"
+ctx += f"\nAgent mode: {agent_mode} ({'parallel worktrees for large tasks' if agent_mode == 'team' else 'single agent'})"
+if last_usage:
+    ctx += f"\nCost estimate: {last_usage}"
 if regen_note:
     ctx += f"\n\n{regen_note}"
 if missing_deps.strip():

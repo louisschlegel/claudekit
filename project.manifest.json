@@ -1,7 +1,7 @@
 {
   "project": {
     "name": "claudekit",
-    "description": "Universal Claude Code template — auto-configuring, self-improving, with 14 agents and 14 workflows",
+    "description": "Universal Claude Code template \u2014 auto-configuring, self-improving, with 14 agents and 14 workflows",
     "type": "library",
     "language": "en"
   },
@@ -60,26 +60,64 @@
     "secret_scan": true
   },
   "agents": [
-    "architect", "reviewer", "tester", "deployer", "explorer",
-    "security-auditor", "debug-detective", "doc-writer", "performance-analyst",
-    "release-manager", "data-engineer", "ml-engineer", "devops-engineer",
-    "cost-analyst", "spec-reader", "template-improver", "memory-curator"
+    "architect",
+    "reviewer",
+    "tester",
+    "deployer",
+    "explorer",
+    "security-auditor",
+    "debug-detective",
+    "doc-writer",
+    "performance-analyst",
+    "release-manager",
+    "data-engineer",
+    "ml-engineer",
+    "devops-engineer",
+    "cost-analyst",
+    "spec-reader",
+    "template-improver",
+    "memory-curator",
+    "compliance-officer",
+    "ai-engineer",
+    "realtime-architect",
+    "data-modeler",
+    "schema-designer"
   ],
   "workflows": [
-    "feature", "bugfix", "hotfix", "release", "security-audit",
-    "dependency-update", "dependency-audit", "refactor", "onboard", "self-improve",
-    "db-migration", "incident-response", "performance-baseline", "publish-package",
-    "api-design", "a-b-test", "data-quality", "llm-eval", "spec-to-project",
-    "code-review", "monitoring-setup", "cost-optimization",
-    "multi-agent-worktrees", "context-handoff", "notebook-review",
-    "cost-dashboard", "riper"
+    "feature",
+    "bugfix",
+    "hotfix",
+    "release",
+    "security-audit",
+    "dependency-update",
+    "dependency-audit",
+    "refactor",
+    "onboard",
+    "self-improve",
+    "db-migration",
+    "incident-response",
+    "performance-baseline",
+    "publish-package",
+    "api-design",
+    "a-b-test",
+    "data-quality",
+    "llm-eval",
+    "spec-to-project",
+    "code-review",
+    "monitoring-setup",
+    "cost-optimization",
+    "multi-agent-worktrees",
+    "context-handoff",
+    "notebook-review",
+    "cost-dashboard",
+    "riper",
+    "mcp-vetting"
   ],
   "automation": {
     "self_improve_every_n_sessions": 10,
     "learning_file": "learning.md",
-    "notifications": true,
-    "subagent_logging": true,
-    "observability": true
+    "agent_mode": "mono",
+    "injection_defense": true
   },
   "security": {
     "secret_scan": true,
@@ -92,7 +130,7 @@
     "simple": "haiku"
   },
   "template": {
-    "version": "1.2.0",
+    "version": "1.1.0",
     "source": "https://github.com/louisschlegel/claudekit"
   }
 }
