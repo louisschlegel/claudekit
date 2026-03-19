@@ -23,11 +23,33 @@ if [ -z "$FILE" ]; then
     exit 0
 fi
 
+# ── Sécurité: bloquer commit de fichiers .env ─────────────────────────────
+if echo "$FILE" | grep -qE "(^|/)\.env$|\.env\.(local|production|staging|test)$"; then
+  python3 -c "
+import json
+print(json.dumps({
+    'decision': 'block',
+    'reason': 'Fichier .env détecté — ne jamais committer des credentials. Utilise .env.example à la place.'
+}))
+"
+  exit 0
+fi
+
 # Python files: ruff lint
 if [[ "$FILE" == *.py ]]; then
     if command -v ruff >/dev/null 2>&1; then
         ruff check "$FILE" --fix --quiet 2>/dev/null || true
     fi
+fi
+
+# ── Python: complexité cyclomatique (radon) ──────────────────────────────
+if echo "$FILE" | grep -q "\.py$"; then
+  if command -v radon &>/dev/null; then
+    CC_OUT=$(radon cc "$FILE" --min C -s 2>&1 | grep -v "^$")
+    if [ -n "$CC_OUT" ]; then
+      WARNINGS="$WARNINGS\n[radon] Complexité élevée :\n$CC_OUT"
+    fi
+  fi
 fi
 
 # Shell scripts: bash syntax check
@@ -65,5 +87,23 @@ for pattern, description in SECRET_PATTERNS:
         break
 PYEOF
 fi
+
+# ── Scan: prompt injection / secrets hardcodés ────────────────────────────
+INJECTION_PATTERNS=(
+  "ignore previous instructions"
+  "ignore all instructions"
+  "you are now"
+  "AKIA[0-9A-Z]{16}"
+  "sk-[a-zA-Z0-9]{48}"
+  "ghp_[a-zA-Z0-9]{36}"
+  "xoxb-[0-9]"
+)
+
+FILE_CONTENT=$(cat "$FILE" 2>/dev/null || echo "")
+for pattern in "${INJECTION_PATTERNS[@]}"; do
+  if echo "$FILE_CONTENT" | grep -qiE "$pattern" 2>/dev/null; then
+    ERRORS="$ERRORS\n[security] Pattern suspect détecté dans $FILE : '$pattern'"
+  fi
+done
 
 exit 0
