@@ -69,6 +69,37 @@ Si l'outil n'est pas disponible, noter "outil non disponible — vérification m
 - Logs exposant des données sensibles
 - Variables d'environnement de production dans le code
 
+## Static Analysis Tools (if available)
+
+When present in the project, leverage:
+
+**Semgrep** (if installed):
+```bash
+semgrep --config=auto [target] --json 2>/dev/null | python3 -c "
+import json,sys
+results = json.load(sys.stdin).get('results',[])
+for r in results:
+    print(f\"{r['path']}:{r['start']['line']} [{r['extra']['severity']}] {r['extra']['message'][:100]}\")
+"
+```
+
+**CodeQL** (if configured in CI):
+- Check `.github/workflows/` for CodeQL workflow
+- Surface any existing alerts: `gh api repos/{owner}/{repo}/code-scanning/alerts --jq '.[].rule.description'`
+
+**Bandit** (Python):
+```bash
+bandit -r . -f json 2>/dev/null | python3 -c "
+import json,sys
+data = json.load(sys.stdin)
+for issue in data.get('results',[]):
+    if issue['issue_severity'] in ('HIGH','MEDIUM'):
+        print(f\"{issue['filename']}:{issue['line_number']} [{issue['issue_severity']}] {issue['issue_text']}\")
+"
+```
+
+Include static analysis results in the findings JSON output.
+
 ## CONTRAT DE SORTIE
 
 ```

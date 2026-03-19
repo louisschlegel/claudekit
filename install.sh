@@ -80,7 +80,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Hooks custom (tout ce qui n'est pas géré par claudekit)
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh"
   if [ -d "$dst/.claude/hooks" ]; then
     for hook in "$dst/.claude/hooks"/*.sh; do
       [ -f "$hook" ] || continue
@@ -104,7 +104,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Workflows custom
-  CLAUDEKIT_WORKFLOWS="feature bugfix hotfix release security-audit dependency-update dependency-audit refactor onboard self-improve db-migration incident-response performance-baseline publish-package api-design a-b-test data-quality llm-eval spec-to-project code-review monitoring-setup cost-optimization"
+  CLAUDEKIT_WORKFLOWS="feature bugfix hotfix release security-audit dependency-update dependency-audit refactor onboard onboarding self-improve db-migration incident-response performance-baseline publish-package api-design a-b-test data-quality llm-eval spec-to-project code-review monitoring-setup cost-optimization multi-agent-worktrees context-handoff notebook-review cost-dashboard riper"
   if [ -d "$dst/workflows" ]; then
     for wf in "$dst/workflows"/*.md; do
       [ -f "$wf" ] || continue

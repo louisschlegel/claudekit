@@ -28,7 +28,8 @@ HOOKS_DIR = ROOT / ".claude" / "hooks"
 # Hooks gérés par gen.py — tout autre .sh dans hooks/ est custom et non touché
 GENERATED_HOOK_NAMES = {
     "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
-    "post-edit.sh", "stop.sh", "pre-push.sh",
+    "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
+    "notification.sh", "subagent-stop.sh", "observability.sh",
 }
 
 
@@ -67,6 +68,17 @@ BASE_PERMISSIONS = [
     "WebFetch(domain:localhost)",
     "WebFetch(domain:github.com)",
     "Skill(update-config)",
+]
+
+# ─── Deny patterns (sécurité — toujours bloqués) ─────────────────────────────
+BASE_DENY_PATTERNS = [
+    # SSH & credentials
+    "Bash(cat ~/.ssh/*:*)",
+    "Bash(cat ~/.aws/*:*)",
+    "Bash(env | grep -i key:*)",
+    "Bash(env | grep -i secret:*)",
+    "Bash(env | grep -i token:*)",
+    "Bash(printenv:*)",
 ]
 
 # ─── Permissions par langage/framework ───────────────────────────────────────
@@ -360,14 +372,199 @@ MCP_PERMISSIONS = {
 }
 
 
+# ─── Model routing map ───────────────────────────────────────────────────────
+MODEL_ROUTING_MAP = {
+    "sonnet": "claude-sonnet-4-6",
+    "opus":   "claude-opus-4-6",
+    "haiku":  "claude-haiku-4-5-20251001",
+}
+
+
+# ─── .claudeignore generator ──────────────────────────────────────────────────
+
+def make_claudeignore(manifest: dict) -> str:
+    """Generate .claudeignore content based on the manifest stack."""
+    lines = [
+        "# .claudeignore — généré par gen.py depuis project.manifest.json",
+        "# Claude ignorera ces fichiers/dossiers lors de la lecture du codebase",
+        "",
+        "# Toujours ignorés",
+        ".git/",
+        ".template/",
+        "*.log",
+        "*.tmp",
+        "node_modules/",
+        ".DS_Store",
+    ]
+
+    stack = manifest.get("stack", {})
+    languages = [l.lower() for l in stack.get("languages", [])]
+    frameworks = [f.lower() for f in stack.get("frameworks", [])]
+
+    has_python = "python" in languages or any(
+        x in fw for fw in frameworks
+        for x in ("django", "flask", "fastapi", "celery", "airflow", "pytorch", "tensorflow")
+    )
+    has_js_ts = any(x in languages for x in ("javascript", "typescript")) or any(
+        x in fw for fw in frameworks
+        for x in ("react", "next", "vue", "nuxt", "angular", "svelte", "expo")
+    )
+    has_go = "go" in languages
+    has_rust = "rust" in languages
+    has_java = "java" in languages or any(
+        x in fw for fw in frameworks for x in ("spring", "quarkus", "micronaut")
+    )
+
+    if has_python:
+        lines += [
+            "",
+            "# Python",
+            ".venv/",
+            "__pycache__/",
+            "*.pyc",
+            "*.pyo",
+            "dist/",
+            "build/",
+            ".pytest_cache/",
+            "*.egg-info/",
+        ]
+
+    if has_js_ts:
+        lines += [
+            "",
+            "# JavaScript / TypeScript",
+            "node_modules/",
+            "dist/",
+            ".next/",
+            ".nuxt/",
+            "coverage/",
+            ".turbo/",
+        ]
+
+    if has_go:
+        lines += [
+            "",
+            "# Go",
+            "vendor/",
+        ]
+
+    if has_rust:
+        lines += [
+            "",
+            "# Rust",
+            "target/",
+        ]
+
+    if has_java:
+        lines += [
+            "",
+            "# Java",
+            "target/",
+            "build/",
+            ".gradle/",
+        ]
+
+    return "\n".join(lines) + "\n"
+
+
+# ─── Monorepo CLAUDE.md generator ─────────────────────────────────────────────
+
+def make_monorepo_claude_mds(manifest: dict) -> int:
+    """
+    Generate sub-directory CLAUDE.md files for monorepo packages.
+    Returns the number of CLAUDE.md files written.
+    """
+    stack = manifest.get("stack", {})
+    project_name = manifest.get("project", {}).get("name", "projet")
+    languages = stack.get("languages", [])
+    frameworks = stack.get("frameworks", [])
+    test_cmd = "npm test"  # default
+
+    # Guess test command from stack
+    if "python" in [l.lower() for l in languages]:
+        test_cmd = "pytest"
+    elif any(x in [f.lower() for f in frameworks] for x in ("jest", "vitest")):
+        test_cmd = "npm test"
+    elif "go" in [l.lower() for l in languages]:
+        test_cmd = "go test ./..."
+    elif "rust" in [l.lower() for l in languages]:
+        test_cmd = "cargo test"
+
+    lang_list = ", ".join(languages + frameworks) if (languages or frameworks) else "voir manifest"
+
+    package_dirs = []
+    for subdir in ("packages", "apps", "services"):
+        candidate = ROOT / subdir
+        if candidate.is_dir():
+            for pkg in sorted(candidate.iterdir()):
+                if pkg.is_dir() and not pkg.name.startswith("."):
+                    package_dirs.append(pkg)
+
+    count = 0
+    for pkg_dir in package_dirs:
+        claude_md_path = pkg_dir / "CLAUDE.md"
+        if claude_md_path.exists():
+            continue  # Respect existing custom CLAUDE.md
+        dirname = pkg_dir.name
+        content = f"""# {dirname} — Subpackage
+
+Part of {project_name} monorepo. See root CLAUDE.md for global rules.
+
+## Stack specifics
+{lang_list}
+
+## Rules
+- Run tests from this directory: `{test_cmd}`
+- Imports: use workspace imports, not relative paths across packages
+"""
+        claude_md_path.write_text(content)
+        count += 1
+
+    return count
+
+
 # ─── Hook content generators ──────────────────────────────────────────────────
+
+def make_pre_compact(manifest: dict) -> str:
+    return r'''#!/bin/bash
+# Hook: PreCompact — Sauvegarde plan + décisions clés avant compaction auto
+# Evite de perdre le contexte critique lors de la compaction
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+INPUT=$(cat)
+SUMMARY=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('summary',''))" 2>/dev/null || echo "")
+
+mkdir -p "$PROJECT_ROOT/.template"
+BACKUP="$PROJECT_ROOT/.template/session-backup.md"
+
+python3 -c "
+from datetime import datetime
+import sys
+summary = sys.argv[1] if len(sys.argv) > 1 else ''
+ts = datetime.now().strftime('%Y-%m-%d %H:%M')
+content = f'# Session backup — {ts}\n\n'
+if summary:
+    content += f'## Resume pre-compaction\n{summary}\n\n'
+content += '_Sauvegarde automatiquement avant compaction du contexte._\n'
+with open('$BACKUP', 'w') as f:
+    f.write(content)
+print(f'[pre-compact] Backup sauvegarde : $BACKUP')
+" "$SUMMARY" 2>/dev/null
+
+exit 0
+'''
+
 
 def make_session_start(manifest: dict) -> str:
     name = manifest.get("project", {}).get("name", "Projet")
     learning_file = manifest.get("context", {}).get("learning_file", "learning.md")
+    compact_focus = manifest.get("context", {}).get("compact_focus", "")
 
-    # Seules les 2 variables dynamiques utilisent un f-string
-    dynamic = f'PROJECT_NAME="{name}"\nLEARNING_FILE="{learning_file}"\n'
+    # Seules les variables dynamiques utilisent un f-string
+    compact_line = f'\nCOMPACT_FOCUS="{compact_focus}"' if compact_focus else ""
+    dynamic = f'PROJECT_NAME="{name}"\nLEARNING_FILE="{learning_file}"{compact_line}\n'
 
     # Tout le reste est un raw string — pas de conflit avec les {} bash/python
     static = r'''
@@ -680,12 +877,20 @@ for p in paths:
 print('\n\n'.join(sections))
 " 2>/dev/null || echo "")
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" <<'PYEOF'
+# ─── Signal 10 — Compact focus (manifest.context.compact_focus) ──────────────
+COMPACT_FOCUS=$(echo "$MANIFEST" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(d.get('context',{}).get('compact_focus',''))
+" 2>/dev/null || echo "")
+
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
 old_branches, hot_files, pending_migrations = sys.argv[13:16]
 docs_list, docs_content = sys.argv[16:18]
+compact_focus = sys.argv[18] if len(sys.argv) > 18 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -728,7 +933,8 @@ if docs_content.strip():
 if rules:
     ctx += f"\n\nRegles custom:\n{rules}"
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
-print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
+if compact_focus:
+    ctx += f"\n\nContexte compact (focus) : {compact_focus}"print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF
 '''
 
@@ -769,13 +975,15 @@ DANGEROUS_PATTERNS=(
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if echo "$COMMAND" | grep -qF "$pattern"; then
+    BLOCKED_PATTERN="$pattern"
     python3 -c "
-import json
+import json, sys
+pattern = sys.argv[1]
 print(json.dumps({
     'decision': 'block',
-    'reason': f'Commande potentiellement destructive détectée : {repr(\"$pattern\")}. Confirme explicitement si tu veux vraiment exécuter ça.'
+    'reason': f'Commande potentiellement destructive détectée : {repr(pattern)}. Confirme explicitement si tu veux vraiment exécuter ça.'
 }))
-"
+" "$BLOCKED_PATTERN"
     exit 0
   fi
 done
@@ -1031,35 +1239,211 @@ def make_stop(manifest: dict) -> str:
     learning_file = manifest.get("context", {}).get("learning_file", "learning.md")
     name = manifest.get("project", {}).get("name", "ce projet")
     return f'''#!/bin/bash
-# Hook: Stop — Rappel de mise à jour + logging d'observations
+# Hook: Stop — Auto-learning observation + session summary + OS notification
 # Auto-portable via BASH_SOURCE
 
 SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-LEARNING_FILE="{learning_file}"
+
 PROJECT_NAME="{name}"
 
-# Vérifie si des fichiers ont été modifiés cette session
-CHANGED=$(cd "$PROJECT_ROOT" && git status --short 2>/dev/null | wc -l | tr -d ' ')
-
-# Logger une observation de session pour le self-improve engine
+# Logger une observation de session pour le self-improve engine (format JSON)
 if command -v python3 &>/dev/null && [ -f "$PROJECT_ROOT/scripts/self-improve.py" ]; then
-  python3 "$PROJECT_ROOT/scripts/self-improve.py" --log \
-    '{{"type": "user_validation", "detail": "session completed, {name}"}}' \
+  python3 "$PROJECT_ROOT/scripts/self-improve.py" --log \\
+    '{{"type": "user_validation", "detail": "session completed, {name}"}}' \\
     2>/dev/null &
 fi
 
-if [ "$CHANGED" -gt "0" ]; then
+# Check if any source files were modified this session
+CHANGED=$(git -C "$PROJECT_ROOT" diff --name-only HEAD 2>/dev/null | grep -v "^$" | wc -l | tr -d ' ')
+CHANGED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only HEAD 2>/dev/null | head -10 || echo "")
+RECENT_COMMITS=$(git -C "$PROJECT_ROOT" log --oneline -3 2>/dev/null || echo "")
+
+# Générer un résumé structuré de session
+mkdir -p "$PROJECT_ROOT/.template"
+SESSION_FILE="$PROJECT_ROOT/.template/session-$(date +%Y%m%d-%H%M%S).md"
+
+python3 -c "
+import json, sys
+files = sys.argv[1]
+commits = sys.argv[2]
+ts = sys.argv[3]
+path = sys.argv[4]
+
+content = f'# Session {{ts}}\\n\\n'
+if commits.strip():
+    content += f'## Commits\\n{{commits}}\\n\\n'
+if files.strip():
+    content += f'## Fichiers modifiés\\n{{files}}\\n\\n'
+
+import pathlib
+pathlib.Path(path).write_text(content)
+" "$CHANGED_FILES" "$RECENT_COMMITS" "$(date '+%Y-%m-%d %H:%M')" "$SESSION_FILE" 2>/dev/null
+
+# Log usage session
+if command -v python3 &>/dev/null; then
   python3 -c "
+import json, time
+from pathlib import Path
+log_path = Path('$PROJECT_ROOT/.template/usage.jsonl')
+log_path.parent.mkdir(exist_ok=True)
+entry = {{
+    'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
+    'changed_files': $CHANGED
+}}
+with open(log_path, 'a') as f:
+    f.write(json.dumps(entry) + '\\n')
+" 2>/dev/null
+fi
+
+# Auto-dedup learning.md (silent, runs async)
+if [ -f "$PROJECT_ROOT/scripts/auto-learn.py" ] && [ -f "$PROJECT_ROOT/{learning_file}" ]; then
+  python3 "$PROJECT_ROOT/scripts/auto-learn.py" --deduplicate 2>/dev/null &
+fi
+
+# Notification OS (macOS / Linux)
+if [ "$CHANGED" -gt "0" ] 2>/dev/null; then
+  if command -v osascript &>/dev/null; then
+    osascript -e "display notification \\"$CHANGED fichier(s) modifié(s) — session terminée\\" with title \\"claudekit — $PROJECT_NAME\\"" 2>/dev/null &
+  elif command -v notify-send &>/dev/null; then
+    notify-send "claudekit — $PROJECT_NAME" "$CHANGED fichier(s) modifié(s) — session terminée" 2>/dev/null &
+  fi
+fi
+
+# Audio notification
+if [ "$CHANGED" -gt "0" ] 2>/dev/null; then
+  if command -v afplay &>/dev/null; then
+    afplay /System/Library/Sounds/Glass.aiff 2>/dev/null &
+  elif command -v paplay &>/dev/null; then
+    paplay /usr/share/sounds/freedesktop/stereo/complete.oga 2>/dev/null &
+  fi
+fi
+
+if [ "$CHANGED" -gt 0 ]; then
+    python3 -c "
 import json
 print(json.dumps({{
     'hookSpecificOutput': {{
         'hookEventName': 'Stop',
-        'additionalContext': '💾 Session terminée avec $CHANGED fichier(s) modifié(s). Si tu as découvert des patterns importants, des bugs ou des décisions d\\'architecture, mets à jour \\`{learning_file}\\` pour $PROJECT_NAME.'
+        'additionalContext': 'Session ended with $CHANGED file(s) modified. Consider updating {learning_file} if patterns or decisions worth remembering were discovered.'
     }}
 }}))
 "
 fi
+
+exit 0
+'''
+
+
+
+def make_notification(manifest: dict) -> str:
+    """Hook: Notification — Claude needs attention (input required or task complete)."""
+    return r'''#!/bin/bash
+# Hook: Notification — Claude needs attention (input required or task complete)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+PROJECT_NAME=$(python3 -c "
+import json
+from pathlib import Path
+manifest = Path('$PROJECT_ROOT/project.manifest.json')
+if manifest.exists():
+    d = json.loads(manifest.read_text())
+    print(d.get('project', {}).get('name', 'claudekit'))
+else:
+    print('claudekit')
+" 2>/dev/null || echo "claudekit")
+
+INPUT=$(cat)
+MESSAGE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','Claude needs your attention'))" 2>/dev/null || echo "Claude needs your attention")
+
+# macOS
+if command -v osascript &>/dev/null; then
+  osascript -e "display notification \"$MESSAGE\" with title \"$PROJECT_NAME\"" 2>/dev/null &
+# Linux
+elif command -v notify-send &>/dev/null; then
+  notify-send "$PROJECT_NAME" "$MESSAGE" 2>/dev/null &
+fi
+
+# Audio (macOS)
+if command -v afplay &>/dev/null; then
+  afplay /System/Library/Sounds/Glass.aiff 2>/dev/null &
+elif command -v paplay &>/dev/null; then
+  paplay /usr/share/sounds/freedesktop/stereo/message.oga 2>/dev/null &
+fi
+
+exit 0
+'''
+
+
+def make_subagent_stop(manifest: dict) -> str:
+    """Hook: SubagentStop — log subagent completion for observability."""
+    return r'''#!/bin/bash
+# Hook: SubagentStop — log subagent completion for observability
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+INPUT=$(cat)
+
+python3 - <<PYEOF 2>/dev/null
+import json, time
+from pathlib import Path
+
+data = json.loads("""$INPUT""") if """$INPUT""".strip() else {}
+log_path = Path("$PROJECT_ROOT/.template/agent-events.jsonl")
+log_path.parent.mkdir(exist_ok=True)
+
+entry = {
+    "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+    "event": "SubagentStop",
+    "agent_id": data.get("agent_id", "unknown"),
+    "duration_ms": data.get("duration_ms"),
+}
+with open(log_path, "a") as f:
+    f.write(json.dumps(entry) + "\n")
+PYEOF
+
+exit 0
+'''
+
+
+def make_observability(manifest: dict) -> str:
+    """Hook: PostToolUse — append tool events to .template/agent-events.jsonl."""
+    return r'''#!/bin/bash
+# Hook: PostToolUse — append tool events to .template/agent-events.jsonl
+# Lightweight observability: tracks tool usage without blocking
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null || echo "")
+
+# Only log Edit, Write, Bash — skip Read to avoid noise
+if [[ "$TOOL_NAME" != "Edit" && "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Bash" && "$TOOL_NAME" != "MultiEdit" ]]; then
+  exit 0
+fi
+
+python3 - <<PYEOF 2>/dev/null
+import json, time, sys
+from pathlib import Path
+
+try:
+    tool = "$TOOL_NAME"
+    log_path = Path("$PROJECT_ROOT/.template/agent-events.jsonl")
+    log_path.parent.mkdir(exist_ok=True)
+    entry = {
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "event": "PostToolUse",
+        "tool": tool,
+    }
+    with open(log_path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+except:
+    pass
+PYEOF
 
 exit 0
 '''
@@ -1205,18 +1589,25 @@ def build_hooks(manifest: dict) -> dict:
         }]
     }]
 
-    # PostToolUse — quality guards (si au moins un guard actif)
+    # PostToolUse — quality guards + observability
     guards = manifest.get("guards", {})
+    post_tool_hooks = []
     if any(guards.values()):
-        hooks["PostToolUse"] = [{
-            "matcher": "Edit|Write",
-            "hooks": [{
-                "type": "command",
-                "command": "bash .claude/hooks/post-edit.sh",
-                "timeout": 30,
-                "statusMessage": "Guards qualité en cours..."
-            }]
-        }]
+        post_tool_hooks.append({
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit.sh",
+            "timeout": 30,
+            "statusMessage": "Guards qualité en cours..."
+        })
+    post_tool_hooks.append({
+        "type": "command",
+        "command": "bash .claude/hooks/observability.sh",
+        "timeout": 3
+    })
+    hooks["PostToolUse"] = [{
+        "matcher": "Edit|Write|Bash|MultiEdit",
+        "hooks": post_tool_hooks
+    }]
 
     # Stop (toujours)
     hooks["Stop"] = [{
@@ -1238,6 +1629,34 @@ def build_hooks(manifest: dict) -> dict:
         }]
     }]
 
+    # PreCompact — save context before compaction (toujours)
+    hooks["PreCompact"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/pre-compact.sh",
+            "timeout": 10,
+            "statusMessage": "Sauvegarde du contexte avant compaction..."
+        }]
+    }]
+
+    # Notification — Claude needs attention
+    hooks["Notification"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/notification.sh",
+            "timeout": 5
+        }]
+    }]
+
+    # SubagentStop — log subagent completion for observability
+    hooks["SubagentStop"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/subagent-stop.sh",
+            "timeout": 5
+        }]
+    }]
+
     return hooks
 
 
@@ -1252,12 +1671,32 @@ def build_mcp_servers(manifest: dict) -> dict:
 
 
 def build_settings(manifest: dict) -> dict:
+    # Build deny rules
+    deny_rules = list(BASE_DENY_PATTERNS)
+    security = manifest.get("security", {})
+    if security.get("owasp_check", False):
+        deny_rules += [
+            "Bash(eval:*)",
+            "Bash(exec:*)",
+            "Bash(python3 -c *exec*:*)",
+            "Bash(node -e *eval*:*)",
+        ]
+
     settings = {
         "permissions": {
-            "allow": build_permissions(manifest)
+            "allow": build_permissions(manifest),
+            "deny": deny_rules,
         },
         "hooks": build_hooks(manifest)
     }
+
+    # Model routing
+    model_routing = manifest.get("model_routing", {})
+    if model_routing:
+        default_alias = model_routing.get("default", "sonnet")
+        model_id = MODEL_ROUTING_MAP.get(default_alias, MODEL_ROUTING_MAP["sonnet"])
+        settings["model"] = model_id
+        settings["model_routing"] = model_routing
 
     # Enabled MCP JSON servers
     mcp_servers = manifest.get("mcp_servers", [])
@@ -1359,12 +1798,16 @@ def _build_generated_files(manifest: dict) -> dict:
     files[".claude/hooks/session-start.sh"] = make_session_start(manifest)
     files[".claude/hooks/user-prompt-submit.sh"] = make_user_prompt_submit(manifest)
     files[".claude/hooks/pre-bash-guard.sh"] = make_pre_bash_guard(manifest)
+    files[".claude/hooks/pre-compact.sh"] = make_pre_compact(manifest)
 
     guards = manifest.get("guards", {})
     if any(guards.values()):
         files[".claude/hooks/post-edit.sh"] = make_post_edit(manifest)
 
     files[".claude/hooks/stop.sh"] = make_stop(manifest)
+    files[".claude/hooks/notification.sh"] = make_notification(manifest)
+    files[".claude/hooks/subagent-stop.sh"] = make_subagent_stop(manifest)
+    files[".claude/hooks/observability.sh"] = make_observability(manifest)
 
     mcp_servers = build_mcp_servers(manifest)
     if mcp_servers:
@@ -1373,7 +1816,7 @@ def _build_generated_files(manifest: dict) -> dict:
     return files
 
 
-def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool = False):
+def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool = False, target: str | None = None):
     print("gen.py — Generation de la config Claude Code")
     print(f"   Root: {ROOT}")
 
@@ -1388,6 +1831,45 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
 
     project_name = manifest.get("project", {}).get("name", "Projet")
     print(f"   Projet: {project_name}")
+
+    # ── --target cursor : export .cursorrules + exit ───────────────────────────
+    if target == "cursor":
+        stack = manifest.get("stack", {})
+        workflow = manifest.get("workflow", {})
+        guards = manifest.get("guards", {})
+        agents = manifest.get("agents", [])
+        langages = ", ".join(stack.get("languages", []))
+        frameworks = ", ".join(stack.get("frameworks", []))
+        description = manifest.get("project", {}).get("description", "")
+        commit_language = workflow.get("commit_language", "en")
+        testing = ", ".join(stack.get("testing", []))
+        linting = ", ".join(stack.get("linting", []))
+        git_strategy = workflow.get("git_strategy", "feature-branch")
+        guards_list = "\n".join(f"- {k}" for k, v in guards.items() if v) or "- aucun"
+        if isinstance(agents, list):
+            agents_list = "\n".join(f"- {a}" for a in agents)
+        else:
+            agents_list = "\n".join(f"- {k}" for k, v in agents.items() if v)
+        cursorrules_content = f"""# .cursorrules — généré par claudekit depuis project.manifest.json
+# Stack: {langages} / {frameworks}
+# Projet: {description}
+
+## Règles de développement
+- Langage commits : {commit_language}
+- Tests requis : {testing}
+- Linter : {linting}
+- Stratégie git : {git_strategy}
+
+## Guards actifs
+{guards_list}
+
+## Agents disponibles (voir .claude/agents/)
+{agents_list}
+"""
+        cursor_path = ROOT / ".cursorrules"
+        cursor_path.write_text(cursorrules_content)
+        print(f"[ok] .cursorrules — généré pour Cursor ({cursor_path})")
+        return
 
     generated = _build_generated_files(manifest)
 
@@ -1489,6 +1971,18 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     (HOOKS_DIR / "stop.sh").chmod(0o755)
     hooks_generated.append("stop.sh")
 
+    (HOOKS_DIR / "notification.sh").write_text(generated[".claude/hooks/notification.sh"])
+    (HOOKS_DIR / "notification.sh").chmod(0o755)
+    hooks_generated.append("notification.sh")
+
+    (HOOKS_DIR / "subagent-stop.sh").write_text(generated[".claude/hooks/subagent-stop.sh"])
+    (HOOKS_DIR / "subagent-stop.sh").chmod(0o755)
+    hooks_generated.append("subagent-stop.sh")
+
+    (HOOKS_DIR / "observability.sh").write_text(generated[".claude/hooks/observability.sh"])
+    (HOOKS_DIR / "observability.sh").chmod(0o755)
+    hooks_generated.append("observability.sh")
+
     # Install pre-push git hook (symlink or copy)
     pre_push_src = HOOKS_DIR / "pre-push.sh"
     if pre_push_src.exists():
@@ -1508,6 +2002,11 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
             else:
                 hooks_generated.append("pre-push (already installed)")
 
+    # Write pre-compact hook
+    (HOOKS_DIR / "pre-compact.sh").write_text(generated[".claude/hooks/pre-compact.sh"])
+    (HOOKS_DIR / "pre-compact.sh").chmod(0o755)
+    hooks_generated.append("pre-compact.sh")
+
     print(f"[ok] Hooks generes : {', '.join(hooks_generated)}")
 
     # Generate .mcp.json
@@ -1520,10 +2019,52 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
             MCP_PATH.unlink()
         print("    Pas de MCP servers configures")
 
+    # AGENTS.md — copy of CLAUDE.md for multi-tool compatibility (Cursor, Codex, Amp, Jules)
+    claude_md_path = ROOT / "CLAUDE.md"
+    agents_md_path = ROOT / "AGENTS.md"
+    if claude_md_path.exists():
+        import shutil
+        shutil.copy2(claude_md_path, agents_md_path)
+        print(f"[ok] AGENTS.md — copie de CLAUDE.md (compatibilite multi-tools)")
+
+    # .agents/ directory with README for multi-tool compat
+    agents_dir = ROOT / ".agents"
+    agents_dir.mkdir(exist_ok=True)
+    agents_readme = agents_dir / "README.md"
+    if not agents_readme.exists():
+        agents_readme.write_text(
+            "# .agents/\n\n"
+            "Ce dossier existe pour la compatibilité multi-outils (Cursor, Codex, Amp, Jules).\n\n"
+            "Les agents claudekit sont définis dans `.claude/agents/`.\n"
+        )
+
+    # Update .gitignore to NOT ignore AGENTS.md (should be committed)
+    gitignore_path = ROOT / ".gitignore"
+    if gitignore_path.exists():
+        gitignore_content = gitignore_path.read_text()
+        if "!AGENTS.md" not in gitignore_content:
+            gitignore_path.write_text(gitignore_content.rstrip() + "\n\n# Multi-tool compat (committed)\n!AGENTS.md\n")
+
+    # Generate .claudeignore
+    claudeignore_content = make_claudeignore(manifest)
+    claudeignore_path = ROOT / ".claudeignore"
+    claudeignore_path.write_text(claudeignore_content)
+    print(f"[ok] .claudeignore generated")
+
+    # Generate monorepo CLAUDE.md files (only when monorepo_tools is set)
+    monorepo_tools = manifest.get("stack", {}).get("monorepo_tools", [])
+    if monorepo_tools:
+        n = make_monorepo_claude_mds(manifest)
+        if n > 0:
+            print(f"[ok] Monorepo CLAUDE.md generated for {n} packages")
+
     # Summary
     stack = manifest.get("stack", {})
-    agents = manifest.get("agents", {})
-    active_agents = [k for k, v in agents.items() if v]
+    agents = manifest.get("agents", [])
+    if isinstance(agents, list):
+        active_agents = agents
+    else:
+        active_agents = [k for k, v in agents.items() if v]
 
     print()
     print("===========================================")
@@ -1535,6 +2076,7 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     print(f"  MCP      : {', '.join(mcp_servers.keys()) or 'aucun'}")
     native = manifest.get("claude_native_integrations", [])
     print(f"  Native   : {', '.join(native) or 'aucun'}")
+    print(f"  Compat   : AGENTS.md généré (Cursor/Codex/Amp compatibilité)")
     print()
     print("  Redemarre Claude Code pour appliquer les changements.")
     print()
@@ -1559,10 +2101,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Fusionner les permissions et MCP servers custom existants dans la config générée (au lieu d'écraser).",
     )
+    parser.add_argument(
+        "--target",
+        choices=["cursor"],
+        default=None,
+        help="Export optionnel vers un outil tiers. 'cursor' génère un .cursorrules et quitte.",
+    )
     args = parser.parse_args()
 
     if args.dry_run and args.diff:
         print("Erreur : --dry-run et --diff sont mutuellement exclusifs.")
         sys.exit(1)
 
-    main(dry_run=args.dry_run, show_diff=args.diff, preserve_custom=args.preserve_custom)
+    main(dry_run=args.dry_run, show_diff=args.diff, preserve_custom=args.preserve_custom, target=args.target)

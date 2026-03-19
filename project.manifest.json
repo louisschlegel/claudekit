@@ -6,13 +6,22 @@
     "language": "en"
   },
   "stack": {
-    "languages": ["python", "bash"],
+    "languages": [
+      "python",
+      "bash"
+    ],
     "frameworks": [],
     "databases": [],
     "runtime": "python",
-    "testing": ["pytest"],
-    "linting": ["ruff"],
-    "package_managers": ["pip"],
+    "testing": [
+      "pytest"
+    ],
+    "linting": [
+      "ruff"
+    ],
+    "package_managers": [
+      "pip"
+    ],
     "monorepo_tools": [],
     "data_tools": [],
     "serverless": [],
@@ -24,16 +33,23 @@
     "deploy_target": "github-releases",
     "auto_deploy": false,
     "commit_language": "en",
-    "environments": ["main"],
+    "environments": [
+      "main"
+    ],
     "health_check_url": "",
-    "smoke_tests": ["make validate"],
+    "smoke_tests": [
+      "make validate"
+    ],
     "github_releases": true
   },
-  "mcp_servers": ["github"],
+  "mcp_servers": [
+    "github"
+  ],
   "claude_native_integrations": [],
   "context": {
     "docs_paths": [],
-    "custom_rules": []
+    "custom_rules": [],
+    "compact_focus": "architecture decisions, API contracts, current task context"
   },
   "guards": {
     "lint": true,
@@ -44,13 +60,19 @@
     "secret_scan": true
   },
   "agents": [
-    "architect", "reviewer", "tester", "security-auditor", "debug-detective",
-    "explorer", "doc-writer", "performance-analyst", "release-manager",
-    "devops-engineer", "template-improver"
+    "architect", "reviewer", "tester", "deployer", "explorer",
+    "security-auditor", "debug-detective", "doc-writer", "performance-analyst",
+    "release-manager", "data-engineer", "ml-engineer", "devops-engineer",
+    "cost-analyst", "spec-reader", "template-improver", "memory-curator"
   ],
   "workflows": [
     "feature", "bugfix", "hotfix", "release", "security-audit",
-    "dependency-update", "refactor", "onboard", "self-improve"
+    "dependency-update", "dependency-audit", "refactor", "onboard", "self-improve",
+    "db-migration", "incident-response", "performance-baseline", "publish-package",
+    "api-design", "a-b-test", "data-quality", "llm-eval", "spec-to-project",
+    "code-review", "monitoring-setup", "cost-optimization",
+    "multi-agent-worktrees", "context-handoff", "notebook-review",
+    "cost-dashboard", "riper"
   ],
   "automation": {
     "self_improve_every_n_sessions": 10,
@@ -60,6 +82,11 @@
     "secret_scan": true,
     "dependency_audit": true,
     "owasp_check": false
+  },
+  "model_routing": {
+    "default": "sonnet",
+    "review": "opus",
+    "simple": "haiku"
   },
   "template": {
     "version": "1.1.0",
