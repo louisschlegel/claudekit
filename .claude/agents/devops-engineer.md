@@ -1,3 +1,11 @@
+---
+name: devops-engineer
+description: CI/CD, IaC, Terraform, Kubernetes, monitoring
+tools: [Read,Glob,Grep,Bash]
+model: sonnet
+memory: project
+---
+
 # Agent: DevOps Engineer
 
 ## RÔLE

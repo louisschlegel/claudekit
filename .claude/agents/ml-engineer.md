@@ -1,3 +1,11 @@
+---
+name: ml-engineer
+description: Training, MLOps, serving, evaluation, LLM fine-tuning
+tools: [Read,Glob,Grep,Bash]
+model: opus
+memory: project
+---
+
 # Agent: ML Engineer
 
 ## RÔLE

@@ -1,3 +1,11 @@
+---
+name: data-engineer
+description: Data pipelines, dbt, Airflow, ETL, streaming
+tools: [Read,Glob,Grep,Bash]
+model: sonnet
+memory: project
+---
+
 # Agent: Data Engineer
 
 ## RÔLE

@@ -57,6 +57,9 @@ INTENT_RULES = [
     ("cost-optimization",["optimise les coûts", "réduis les coûts cloud", "trop cher aws", "facture cloud", "optimise les tokens", "rightsizing", "coûts llm", "burn rate trop élevé", "coût infrastructure"]),
     ("dependency-audit", ["audit les dépendances", "vérifie les cve", "scan les vulnérabilités", "dépendances vulnérables", "npm audit", "pip-audit", "security scan deps", "snyk", "licence check"]),
     ("mcp-vetting",       ["ajoute ce mcp", "évalue ce mcp", "vette ce mcp", "add mcp server", "ajoute un mcp", "nouveau serveur mcp", "mcp vetting", "évalue le serveur mcp", "test this mcp"]),
+    ("agent-teams",      ["lance une équipe", "agent team", "team mode", "parallel agents", "multi-agent team", "spawn agents"]),
+    ("cost-audit",       ["audit des coûts", "cost audit", "combien ça coûte", "token usage", "cost report", "optimise les coûts tokens"]),
+    ("skill-lifecycle",  ["crée une skill", "create skill", "extract skill", "promote pattern", "skill lifecycle", "nouvelle skill"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]

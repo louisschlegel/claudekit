@@ -1,3 +1,11 @@
+---
+name: spec-reader
+description: Parse spec documents into manifest, backlog, GitHub issues
+tools: [Read,Glob,Grep,Write,Edit]
+model: opus
+memory: project
+---
+
 # Agent: Spec Reader
 
 ## RÔLE

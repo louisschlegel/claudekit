@@ -33,6 +33,9 @@ Le hook `user-prompt-submit.sh` classifie l'intention et l'injecte en contexte.
 | `cost-dashboard` | → `workflows/cost-dashboard.md` |
 | `riper` | → `workflows/riper.md` |
 | `mcp-vetting` | → `workflows/mcp-vetting.md` |
+| `agent-teams` | → `workflows/agent-teams.md` |
+| `cost-audit` | → `workflows/cost-audit.md` |
+| `skill-lifecycle` | → `workflows/skill-lifecycle.md` |
 | `question` | → réponse directe, pas de workflow |
 | `other` | → demande de clarification, puis route |
 

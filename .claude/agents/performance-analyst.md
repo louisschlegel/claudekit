@@ -1,3 +1,11 @@
+---
+name: performance-analyst
+description: Profiling, benchmarks, optimization, N+1 detection
+tools: [Read,Glob,Grep,Bash]
+model: sonnet
+memory: project
+---
+
 # Agent: Performance Analyst
 
 ## RÔLE

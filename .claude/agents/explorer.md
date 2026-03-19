@@ -1,3 +1,11 @@
+---
+name: explorer
+description: Codebase cartography, architecture mapping, dependency analysis
+tools: [Read,Glob,Grep]
+model: haiku
+memory: local
+---
+
 # Agent: Explorer
 
 ## RÔLE

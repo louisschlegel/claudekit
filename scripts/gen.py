@@ -32,6 +32,7 @@ GENERATED_HOOK_NAMES = {
     "notification.sh", "subagent-stop.sh", "observability.sh",
     "injection-defender.sh", "context-monitor.sh", "live-handoff.sh",
     "stop-guard.sh", "session-end.sh", "permission-auto.sh",
+    "tool-failure.sh", "test-filter.sh",
 }
 
 
@@ -1721,6 +1722,26 @@ def build_hooks(manifest: dict) -> dict:
             "timeout": 3
         }]
     }]
+
+    # PostToolUseFailure — log and recover from tool failures
+    hooks["PostToolUseFailure"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/tool-failure.sh",
+            "timeout": 3,
+            "async": True
+        }]
+    }]
+
+    # PreToolUse(Bash) — filter verbose test output
+    hooks["PreToolUse"].append({
+        "matcher": "Bash",
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/test-filter.sh",
+            "timeout": 3
+        }]
+    })
 
     return hooks
 

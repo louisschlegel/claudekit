@@ -111,7 +111,10 @@
     "notebook-review",
     "cost-dashboard",
     "riper",
-    "mcp-vetting"
+    "mcp-vetting",
+    "agent-teams",
+    "cost-audit",
+    "skill-lifecycle"
   ],
   "automation": {
     "self_improve_every_n_sessions": 10,
