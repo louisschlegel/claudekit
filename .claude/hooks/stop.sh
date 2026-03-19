@@ -5,42 +5,12 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Récupérer le nom du projet depuis le manifest
-PROJECT_NAME=$(python3 -c "
-import json
-from pathlib import Path
-manifest = Path('$PROJECT_ROOT/project.manifest.json')
-if manifest.exists():
-    d = json.loads(manifest.read_text())
-    print(d.get('project', {}).get('name', 'claudekit'))
-else:
-    print('claudekit')
-" 2>/dev/null || echo "claudekit")
-
-LEARNING_FILE=$(python3 -c "
-import json
-from pathlib import Path
-manifest = Path('$PROJECT_ROOT/project.manifest.json')
-if manifest.exists():
-    d = json.loads(manifest.read_text())
-    print(d.get('context', {}).get('learning_file', 'learning.md'))
-else:
-    print('learning.md')
-" 2>/dev/null || echo "learning.md")
-
-# Log observation for self-improvement engine
-if [ -f "$PROJECT_ROOT/scripts/self-improve.py" ]; then
-    python3 "$PROJECT_ROOT/scripts/self-improve.py" \
-        --log \
-        --type "session_end" \
-        --note "Session completed" \
-        2>/dev/null &
-fi
+PROJECT_NAME="claudekit"
 
 # Logger une observation de session pour le self-improve engine (format JSON)
 if command -v python3 &>/dev/null && [ -f "$PROJECT_ROOT/scripts/self-improve.py" ]; then
   python3 "$PROJECT_ROOT/scripts/self-improve.py" --log \
-    '{"type": "user_validation", "detail": "session completed"}' \
+    '{"type": "user_validation", "detail": "session completed, claudekit"}' \
     2>/dev/null &
 fi
 
@@ -84,6 +54,11 @@ entry = {
 with open(log_path, 'a') as f:
     f.write(json.dumps(entry) + '\n')
 " 2>/dev/null
+fi
+
+# Auto-dedup learning.md (silent, runs async)
+if [ -f "$PROJECT_ROOT/scripts/auto-learn.py" ] && [ -f "$PROJECT_ROOT/learning.md" ]; then
+  python3 "$PROJECT_ROOT/scripts/auto-learn.py" --deduplicate 2>/dev/null &
 fi
 
 # Notification OS (macOS / Linux)

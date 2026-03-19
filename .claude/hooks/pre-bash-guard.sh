@@ -24,13 +24,15 @@ DANGEROUS_PATTERNS=(
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if echo "$COMMAND" | grep -qF "$pattern"; then
+    BLOCKED_PATTERN="$pattern"
     python3 -c "
-import json
+import json, sys
+pattern = sys.argv[1]
 print(json.dumps({
     'decision': 'block',
-    'reason': f'Commande potentiellement destructive détectée : {repr("$pattern")}. Confirme explicitement si tu veux vraiment exécuter ça.'
+    'reason': f'Commande potentiellement destructive détectée : {repr(pattern)}. Confirme explicitement si tu veux vraiment exécuter ça.'
 }))
-"
+" "$BLOCKED_PATTERN"
     exit 0
   fi
 done

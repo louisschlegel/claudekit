@@ -97,13 +97,19 @@ lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans
 if legacy:
     lines += [legacy, ""]
 lines += ["Stack detecte :", stack, ""]
+if existing_claude.strip():
+    lines += ["Config Claude existante detectee :"]
+    lines += [existing_claude, ""]
+    lines += ["→ Presente cette config a l'utilisateur AVANT de lancer gen.py."]
+    lines += ["→ Demande ce qu'il veut conserver. Utilise --preserve-custom pour fusionner.", ""]
 lines += ["Deroulement :"]
-lines += ["1. Presente le recap de detection (stack)"]
+lines += ["1. Presente le recap de detection (stack + config existante)"]
 lines += ["2. Si legacy : explore le codebase (Glob/Grep) pour valider"]
 lines += ["3. Lance le SETUP INTERVIEW (CLAUDE.md) question par question"]
 lines += ["4. Ecris project.manifest.json"]
 lines += ["5. python3 scripts/gen.py --diff  →  montre les changements"]
-lines += ["6. python3 scripts/gen.py"]
+lines += ["6. python3 scripts/gen.py --preserve-custom  (si config existante)"]
+lines += ["   ou  python3 scripts/gen.py  (sinon)"]
 lines += ["7. Demande a l'utilisateur de redemarrer Claude Code"]
 msg = "\n".join(lines)
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": msg}}))
@@ -131,73 +137,32 @@ fi
 
 # ─── Signal 1 — Coverage de tests ────────────────────────────────────────────
 COVERAGE=""
-# Python : coverage.xml
 if [ -f "$PROJECT_ROOT/coverage.xml" ]; then
   COV_PCT=$(python3 -c "
-import xml.etree.ElementTree as ET, sys
+import xml.etree.ElementTree as ET
 try:
-    tree = ET.parse('$PROJECT_ROOT/coverage.xml')
-    root = tree.getroot()
-    line_rate = root.get('line-rate') or root.find('.').get('line-rate','')
-    if line_rate:
-        print(str(round(float(line_rate)*100)) + '%')
-except:
-    pass
+    root = ET.parse('$PROJECT_ROOT/coverage.xml').getroot()
+    lr = root.get('line-rate','')
+    if lr: print(str(round(float(lr)*100)) + '%')
+except: pass
 " 2>/dev/null || echo "")
   [ -n "$COV_PCT" ] && COVERAGE="Coverage: $COV_PCT"
 fi
-# Node : coverage/coverage-summary.json
 if [ -z "$COVERAGE" ] && [ -f "$PROJECT_ROOT/coverage/coverage-summary.json" ]; then
   COV_PCT=$(python3 -c "
-import json, sys
+import json
 try:
-    d = json.load(open('$PROJECT_ROOT/coverage/coverage-summary.json'))
-    total = d.get('total', {})
-    lines = total.get('lines', {})
-    pct = lines.get('pct')
-    if pct is not None:
-        print(str(pct) + '%')
-except:
-    pass
-" 2>/dev/null || echo "")
-  [ -n "$COV_PCT" ] && COVERAGE="Coverage: $COV_PCT"
-fi
-# Node : coverage/lcov-report/index.html (dernier recours)
-if [ -z "$COVERAGE" ] && [ -f "$PROJECT_ROOT/coverage/lcov-report/index.html" ]; then
-  COV_PCT=$(python3 -c "
-import re
-try:
-    content = open('$PROJECT_ROOT/coverage/lcov-report/index.html').read()
-    m = re.search(r'(\d+\.?\d*)\s*%\s*<[^>]*>Lines', content)
-    if not m:
-        m = re.search(r'strong[^>]*>(\d+\.?\d*)%</strong>', content)
-    if m:
-        print(m.group(1) + '%')
-except:
-    pass
+    d=json.load(open('$PROJECT_ROOT/coverage/coverage-summary.json'))
+    pct=d.get('total',{}).get('lines',{}).get('pct')
+    if pct is not None: print(str(pct)+'%')
+except: pass
 " 2>/dev/null || echo "")
   [ -n "$COV_PCT" ] && COVERAGE="Coverage: $COV_PCT"
 fi
 [ -z "$COVERAGE" ] && COVERAGE="Coverage: non mesuré"
 
-# ─── Signal 2 — Migrations en attente (Django) ───────────────────────────────
-PENDING_MIGRATIONS=""
-DJANGO_IN_MANIFEST=$(echo "$MANIFEST" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-frameworks=d.get('stack',{}).get('frameworks',[])
-print('yes' if any('django' in str(f).lower() for f in frameworks) else '')
-" 2>/dev/null || echo "")
-if [ -n "$DJANGO_IN_MANIFEST" ]; then
-  if [ -f "$PROJECT_ROOT/docker-compose.yml" ] || [ -f "$PROJECT_ROOT/docker-compose.yaml" ]; then
-    PENDING_MIGRATIONS=$(timeout 3 bash -c "cd '$PROJECT_ROOT' && python3 manage.py showmigrations --plan 2>/dev/null | grep -c '\[ \]'" 2>/dev/null || echo "")
-    [ -n "$PENDING_MIGRATIONS" ] && [ "$PENDING_MIGRATIONS" -gt 0 ] 2>/dev/null && PENDING_MIGRATIONS="${PENDING_MIGRATIONS} migrations non appliquées" || PENDING_MIGRATIONS=""
-  fi
-fi
-
-# ─── Signal 3 — Dépendances vulnérables ──────────────────────────────────────
+# ─── Signal 2 — Dépendances vulnérables ──────────────────────────────────────
 DEPS_ALERT=""
-# Python : pip-audit
 if [ -f "$PROJECT_ROOT/requirements.txt" ] || [ -f "$PROJECT_ROOT/pyproject.toml" ]; then
   VULN_COUNT=$(timeout 5 bash -c "cd '$PROJECT_ROOT' && pip-audit --format=json 2>/dev/null | python3 -c \"
 import json,sys
@@ -206,56 +171,24 @@ try:
     vulns=data.get('vulnerabilities',[]) if isinstance(data,dict) else data
     count=len([v for v in vulns if isinstance(v,dict)])
     print(count if count>0 else '')
-except:
-    pass
+except: pass
 \"" 2>/dev/null || echo "")
-  [ -n "$VULN_COUNT" ] && DEPS_ALERT="$VULN_COUNT vulnérabilités détectées dans les deps Python"
+  [ -n "$VULN_COUNT" ] && DEPS_ALERT="$VULN_COUNT vulnérabilités dans les deps Python"
 fi
-# Node : npm audit
 if [ -z "$DEPS_ALERT" ] && [ -f "$PROJECT_ROOT/package.json" ]; then
   VULN_COUNT=$(timeout 5 bash -c "cd '$PROJECT_ROOT' && npm audit --json 2>/dev/null | python3 -c \"
 import json,sys
 try:
     data=json.load(sys.stdin)
-    meta=data.get('metadata',{})
-    vulns=meta.get('vulnerabilities',{})
-    high=vulns.get('high',0)+vulns.get('critical',0)
+    v=data.get('metadata',{}).get('vulnerabilities',{})
+    high=v.get('high',0)+v.get('critical',0)
     print(high if high>0 else '')
-except:
-    pass
+except: pass
 \"" 2>/dev/null || echo "")
   [ -n "$VULN_COUNT" ] && DEPS_ALERT="$VULN_COUNT vulnérabilités HIGH/CRITICAL dans les deps Node"
 fi
 
-# ─── Signal 4 — Branches feature vieilles (> 14 jours) ──────────────────────
-OLD_BRANCHES=""
-OLD_BRANCHES_RAW=$(cd "$PROJECT_ROOT" && git for-each-ref \
-  --sort=committerdate \
-  --format='%(refname:short)|%(committerdate:relative)|%(committerdate:unix)' \
-  refs/heads/ 2>/dev/null \
-  | grep -v "^main\|^master\|^develop\|^staging\|^production" \
-  | python3 -c "
-import sys, time
-threshold = time.time() - 14*24*3600
-alerts = []
-for line in sys.stdin:
-    line = line.strip()
-    if not line:
-        continue
-    parts = line.split('|')
-    if len(parts) < 3:
-        continue
-    name, rel, ts = parts[0], parts[1], parts[2]
-    try:
-        if int(ts) < threshold:
-            alerts.append(f'{name} (dernière activité : {rel})')
-    except:
-        pass
-print('\n'.join(alerts[:5]))
-" 2>/dev/null || echo "")
-[ -n "$OLD_BRANCHES_RAW" ] && OLD_BRANCHES="$OLD_BRANCHES_RAW"
-
-# ─── Signal 5 — État CI/CD ────────────────────────────────────────────────────
+# ─── Signal 3 — CI/CD ────────────────────────────────────────────────────────
 CI_STATUS=""
 if [ -d "$PROJECT_ROOT/.github/workflows" ]; then
   WF_COUNT=$(ls "$PROJECT_ROOT/.github/workflows/"*.yml "$PROJECT_ROOT/.github/workflows/"*.yaml 2>/dev/null | wc -l | tr -d ' ')
@@ -264,74 +197,77 @@ import json,sys
 try:
     runs=json.load(sys.stdin)
     if runs:
-        r=runs[0]
-        name=r.get('name','')
-        status=r.get('status','')
-        conclusion=r.get('conclusion','')
-        label=conclusion if conclusion else status
-        print(f'{name}: {label}')
-except:
-    pass
+        r=runs[0]; label=r.get('conclusion') or r.get('status','')
+        print(f\\\"{r.get('name','')}: {label}\\\")
+except: pass
 \"" 2>/dev/null || echo "")
-  if [ -n "$GH_RUN" ]; then
-    CI_STATUS="$WF_COUNT workflow(s) GitHub Actions — dernier run: $GH_RUN"
-  else
-    CI_STATUS="$WF_COUNT workflow(s) GitHub Actions configuré(s) — status non disponible sans GitHub MCP"
-  fi
-elif [ -f "$PROJECT_ROOT/.gitlab-ci.yml" ]; then
-  CI_STATUS="GitLab CI configuré — status non disponible localement"
-elif [ -f "$PROJECT_ROOT/Jenkinsfile" ]; then
-  CI_STATUS="Jenkins configuré — status non disponible localement"
+  CI_STATUS="$WF_COUNT workflow(s) GitHub Actions${GH_RUN:+ — dernier run: $GH_RUN}"
 fi
 
-# ─── Signal 6 — Fichiers souvent modifiés sans tests (friction detector) ─────
-HOT_FILES=""
-HOT_FILES_RAW=$(cd "$PROJECT_ROOT" && git log --oneline -20 --name-only 2>/dev/null \
-  | grep -v "^[a-f0-9]\{7,\} " \
-  | grep -v "^\s*$" \
-  | grep -v "test_\|\.test\.\|_test\.\|\.spec\.\|__tests__" \
+# ─── Signal 4 — Dette technique ──────────────────────────────────────────────
+TECH_DEBT=""
+DEBT_COUNT=$(grep -r "TODO\|FIXME\|HACK\|XXX" \
+  --include="*.py" --include="*.ts" --include="*.tsx" \
+  --include="*.js" --include="*.go" --include="*.rs" --include="*.rb" \
+  -l "$PROJECT_ROOT" 2>/dev/null \
+  | grep -v "node_modules\|\.git\|vendor\|dist\|build" \
+  | wc -l | tr -d ' ')
+[ -n "$DEBT_COUNT" ] && [ "$DEBT_COUNT" -gt 0 ] 2>/dev/null && TECH_DEBT="$DEBT_COUNT fichier(s) contiennent des TODO/FIXME/HACK" || TECH_DEBT=""
+
+# ─── Signal 5 — Branches anciennes ───────────────────────────────────────────
+OLD_BRANCHES=$(cd "$PROJECT_ROOT" && git for-each-ref \
+  --sort=committerdate \
+  --format='%(refname:short)|%(committerdate:relative)|%(committerdate:unix)' \
+  refs/heads/ 2>/dev/null \
+  | grep -v "^main\|^master\|^develop\|^staging" \
+  | python3 -c "
+import sys, time
+threshold = time.time() - 14*24*3600
+alerts = []
+for line in sys.stdin:
+    parts = line.strip().split('|')
+    if len(parts) < 3: continue
+    name, rel, ts = parts
+    try:
+        if int(ts) < threshold:
+            alerts.append(f'{name} (dernière activité : {rel})')
+    except: pass
+print('\n'.join(alerts[:5]))
+" 2>/dev/null || echo "")
+
+# ─── Signal 6 — Fichiers chauds sans tests ───────────────────────────────────
+HOT_FILES=$(cd "$PROJECT_ROOT" && git log --oneline -20 --name-only 2>/dev/null \
+  | grep -v "^[a-f0-9]\{7,\} " | grep -v "^\s*$" \
+  | grep -v "test_\|\.test\.\|_test\.\|\.spec\." \
   | sort | uniq -c | sort -rn \
   | python3 -c "
 import sys, os
 alerts = []
 for line in sys.stdin:
-    line = line.strip()
-    if not line:
-        continue
-    parts = line.split(None, 1)
-    if len(parts) < 2:
-        continue
-    count, filepath = parts
+    parts = line.strip().split(None, 1)
+    if len(parts) < 2: continue
     try:
-        count = int(count)
-    except:
-        continue
-    if count < 3:
-        break
-    basename = os.path.basename(filepath)
-    dirname = os.path.dirname(filepath)
-    name_no_ext = os.path.splitext(basename)[0]
-    test_patterns = [
-        f'test_{name_no_ext}', f'{name_no_ext}_test',
-        f'{name_no_ext}.test', f'{name_no_ext}.spec',
-    ]
-    alerts.append(f'{filepath} modifié {count}x récemment (pas de test détecté dans le nom)')
+        count = int(parts[0])
+    except: continue
+    if count < 3: break
+    alerts.append(f'{parts[1]} modifié {count}x récemment (pas de test détecté dans le nom)')
 print('\n'.join(alerts[:3]))
 " 2>/dev/null || echo "")
-[ -n "$HOT_FILES_RAW" ] && HOT_FILES="$HOT_FILES_RAW"
 
-# ─── Signal 7 — Dette technique visible ──────────────────────────────────────
-TECH_DEBT=""
-DEBT_COUNT=$(grep -r "TODO\|FIXME\|HACK\|XXX" \
-  --include="*.py" --include="*.ts" --include="*.tsx" \
-  --include="*.js" --include="*.jsx" --include="*.go" \
-  --include="*.rs" --include="*.rb" --include="*.java" \
-  -l "$PROJECT_ROOT" 2>/dev/null \
-  | grep -v "node_modules\|\.git\|vendor\|dist\|build\|\.next\|coverage" \
-  | wc -l | tr -d ' ')
-[ -n "$DEBT_COUNT" ] && [ "$DEBT_COUNT" -gt 0 ] 2>/dev/null && TECH_DEBT="$DEBT_COUNT fichier(s) contiennent des TODO/FIXME/HACK" || TECH_DEBT=""
+# ─── Signal 7 — Migrations en attente ────────────────────────────────────────
+PENDING_MIGRATIONS=""
+DJANGO_IN_MANIFEST=$(echo "$MANIFEST" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+fw=d.get('stack',{}).get('frameworks',[])
+print('yes' if any('django' in str(f).lower() for f in fw) else '')
+" 2>/dev/null || echo "")
+if [ -n "$DJANGO_IN_MANIFEST" ]; then
+  PENDING_MIGRATIONS=$(timeout 3 bash -c "cd '$PROJECT_ROOT' && python3 manage.py showmigrations --plan 2>/dev/null | grep -c '\[ \]'" 2>/dev/null || echo "")
+  [ -n "$PENDING_MIGRATIONS" ] && [ "$PENDING_MIGRATIONS" -gt 0 ] 2>/dev/null && PENDING_MIGRATIONS="${PENDING_MIGRATIONS} migrations non appliquées" || PENDING_MIGRATIONS=""
+fi
 
-# ─── Signal 8 — Documentation disponible (Option A: auto-detect) ──────────────
+# ─── Signal 8 — Documentation disponible (auto-detect) ───────────────────────
 DOCS_LIST=$(python3 - "$PROJECT_ROOT" <<'PYDOCS'
 import sys
 from pathlib import Path
@@ -354,7 +290,7 @@ print('\n'.join(docs[:30]))
 PYDOCS
 2>/dev/null || echo "")
 
-# ─── Signal 9 — Docs content injection (Option B: manifest.context.docs_paths) ─
+# ─── Signal 9 — Docs content injection (manifest.context.docs_paths) ─────────
 DOCS_CONTENT=$(echo "$MANIFEST" | python3 -c "
 import json, sys
 from pathlib import Path
@@ -372,8 +308,7 @@ for p in paths:
         continue
     try:
         lines = f.read_text(encoding='utf-8', errors='replace').splitlines()
-        preview = lines[:100]
-        content = '\n'.join(preview)
+        content = '\n'.join(lines[:100])
         if len(lines) > 100:
             content += f'\n... ({len(lines) - 100} lignes supplémentaires — utilisez Read pour la suite)'
         sections.append(f'--- {p} ---\n{content}')
@@ -382,37 +317,20 @@ for p in paths:
 print('\n\n'.join(sections))
 " 2>/dev/null || echo "")
 
-# ─── Signal 10 — Compact focus (manifest.context.compact_focus) ───────────────
+# ─── Signal 10 — Compact focus (manifest.context.compact_focus) ──────────────
 COMPACT_FOCUS=$(echo "$MANIFEST" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
 print(d.get('context',{}).get('compact_focus',''))
 " 2>/dev/null || echo "")
 
-# ─── Signal 11 — Handoff de session précédente ────────────────────────────────
-HANDOFF=""
-if [ -f "$PROJECT_ROOT/.template/handoff.md" ]; then
-  HANDOFF=$(head -50 "$PROJECT_ROOT/.template/handoff.md" 2>/dev/null || echo "")
-fi
-
-# ── Signal: environment detection ────────────────────────────────
-ENV_CONTEXT=""
-if [ -n "$REMOTE_CONTAINERS" ] || [ -f "/.dockerenv" ] || [ -n "$CODESPACES" ]; then
-  ENV_CONTEXT="🐳 Running in container/Codespaces"
-elif [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_TTY" ]; then
-  ENV_CONTEXT="🔌 Running via SSH — GUI notifications disabled"
-fi
-
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$HANDOFF" "$ENV_CONTEXT" <<'PYEOF'
-
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
 old_branches, hot_files, pending_migrations = sys.argv[13:16]
 docs_list, docs_content = sys.argv[16:18]
 compact_focus = sys.argv[18] if len(sys.argv) > 18 else ""
-handoff = sys.argv[19] if len(sys.argv) > 19 else ""
-env_context = sys.argv[20] if len(sys.argv) > 20 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -425,7 +343,6 @@ ctx = "\n".join([
     f"Manifest:\n{manifest}",
 ])
 
-# Section état opérationnel
 op_lines = ["", "=== ETAT OPERATIONNEL ===", ""]
 op_lines.append(f"Tests: {coverage}")
 op_lines.append(f"Securite: {'⚠️  ' + deps_alert if deps_alert else 'deps OK'}")
@@ -435,12 +352,10 @@ op_lines.append(f"Dette: {tech_debt if tech_debt else 'aucun TODO/FIXME détect�
 alerts = []
 if old_branches:
     for line in old_branches.strip().splitlines():
-        if line.strip():
-            alerts.append(f"  Branch ancienne : {line.strip()}")
+        if line.strip(): alerts.append(f"  Branch ancienne : {line.strip()}")
 if hot_files:
     for line in hot_files.strip().splitlines():
-        if line.strip():
-            alerts.append(f"  Fichier chaud : {line.strip()}")
+        if line.strip(): alerts.append(f"  Fichier chaud : {line.strip()}")
 if pending_migrations:
     alerts.append(f"  Migrations : {pending_migrations}")
 
@@ -459,11 +374,5 @@ if rules:
     ctx += f"\n\nRegles custom:\n{rules}"
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
 if compact_focus:
-    ctx += f"\n\nContexte compact (focus) : {compact_focus}"
-if handoff.strip():
-    ctx += f"\n\n=== HANDOFF SESSION PRECEDENTE ===\n{handoff}"
-if env_context.strip():
-    ctx += f"\n\n=== ENVIRONMENT ===\n{env_context}"
-
-print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
+    ctx += f"\n\nContexte compact (focus) : {compact_focus}"print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF

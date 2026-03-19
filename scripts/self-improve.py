@@ -132,14 +132,11 @@ def check_threshold() -> bool:
 
 
 def _get_session_count() -> int:
-    """Count sessions since last self-improvement (stop.sh increments via log entries)."""
+    """Count sessions since last self-improvement by counting unique session days."""
     entries = read_log()
-    # Count unique session starts (entries with type='session_start' or count by day)
     session_entries = [e for e in entries if not e.get("processed", False)]
-    # Simple heuristic: number of unprocessed entries / average events per session (3)
-    return max(len(session_entries) // 3, len(set(
-        e.get("timestamp", "")[:10] for e in session_entries
-    )))
+    # Count unique days — more reliable than dividing by avg events per session
+    return len(set(e.get("timestamp", "")[:10] for e in session_entries if e.get("timestamp")))
 
 
 def clear_processed():

@@ -1,0 +1,20 @@
+# .claudeignore — généré par gen.py depuis project.manifest.json
+# Claude ignorera ces fichiers/dossiers lors de la lecture du codebase
+
+# Toujours ignorés
+.git/
+.template/
+*.log
+*.tmp
+node_modules/
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+.pytest_cache/
+*.egg-info/
