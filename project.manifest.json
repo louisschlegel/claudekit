@@ -81,7 +81,8 @@
     "ai-engineer",
     "realtime-architect",
     "data-modeler",
-    "schema-designer"
+    "schema-designer",
+    "devils-advocate"
   ],
   "workflows": [
     "feature",
