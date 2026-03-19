@@ -69,3 +69,4 @@ learning.md
 .template/manifest.hash
 .template/session-files.txt
 .claude/worktrees/
+.template/update-check.json
