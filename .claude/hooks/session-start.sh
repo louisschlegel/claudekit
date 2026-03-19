@@ -463,11 +463,18 @@ DEBT_COUNT=$(grep -r "TODO\|FIXME\|HACK\|XXX" \
   | wc -l | tr -d ' ')
 [ -n "$DEBT_COUNT" ] && [ "$DEBT_COUNT" -gt 0 ] 2>/dev/null && TECH_DEBT="$DEBT_COUNT fichier(s) contiennent des TODO/FIXME/HACK" || TECH_DEBT=""
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" <<'PYEOF'
+# ─── Signal 8.5 — Handoff de session précédente ──────────────────────────────
+HANDOFF=""
+if [ -f "$PROJECT_ROOT/.template/handoff.md" ]; then
+  HANDOFF=$(head -50 "$PROJECT_ROOT/.template/handoff.md" 2>/dev/null || echo "")
+fi
+
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$HANDOFF" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
 old_branches, hot_files, pending_migrations = sys.argv[13:16]
+handoff = sys.argv[16] if len(sys.argv) > 16 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -509,5 +516,9 @@ ctx += "\n".join(op_lines)
 if rules:
     ctx += f"\n\nRegles custom:\n{rules}"
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
+
+if handoff.strip():
+    ctx += f"\n\n=== HANDOFF SESSION PRECEDENTE ===\n{handoff}"
+
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF
