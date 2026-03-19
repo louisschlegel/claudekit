@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "source": "https://github.com/louisschlegel/claudekit",
   "created": "2026-03-18T00:00:00Z",
   "improvement_history": [
@@ -28,6 +28,13 @@
       "date": "2026-03-19T00:00:00.000000+00:00",
       "type": "minor",
       "summary": "5 skills, memory-curator agent, riper workflow, .claudeignore, model routing, Notification/SubagentStop/observability hooks, gen.py enhancements"
+    },
+    {
+      "from": "1.2.0",
+      "to": "1.3.0",
+      "date": "2026-03-19T16:00:00.000000+00:00",
+      "type": "minor",
+      "summary": "injection-defender hook, 5 agents (compliance/ai/realtime/data-modeler/schema), 7 commands, 3 skills (auto-research/memory-sync/configure), mcp-vetting workflow, manifest-regen hook, automation flags, cost tracking"
     }
   ]
 }
