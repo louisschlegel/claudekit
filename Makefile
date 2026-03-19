@@ -40,6 +40,18 @@ validate:
 		grep -q "SPÉCIALISATIONS" "$$f" || { echo "Missing SPÉCIALISATIONS: $$f"; missing=1; }; \
 	done; \
 	[ $$missing -eq 0 ] || exit 1
+	@echo "=== Checking workflows HANDOFF JSON coverage ==="
+	@missing=0; \
+	for f in workflows/*.md; do \
+		grep -q "HANDOFF JSON" "$$f" || { echo "Missing HANDOFF JSON: $$f"; missing=1; }; \
+	done; \
+	[ $$missing -eq 0 ] || exit 1
+	@echo "=== Checking workflows CONTRAT DE SORTIE coverage ==="
+	@missing=0; \
+	for f in workflows/*.md; do \
+		grep -q "CONTRAT DE SORTIE" "$$f" || { echo "Missing CONTRAT DE SORTIE: $$f"; missing=1; }; \
+	done; \
+	[ $$missing -eq 0 ] || exit 1
 	@echo "=== Testing gen.py end-to-end ==="
 	@python3 scripts/gen.py --manifest examples/web-app.manifest.json --dry-run 2>/dev/null || \
 		python3 -c "\
