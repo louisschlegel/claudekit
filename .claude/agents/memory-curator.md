@@ -35,3 +35,25 @@ Générer un rapport de l'état de la mémoire :
 ## Output
 Mettre à jour `learning.md` avec les consolidations effectuées.
 Créer les nouveaux skills si approuvés.
+
+---
+
+**HANDOFF JSON (pour orchestrateur) :**
+```json
+{
+  "entries_total": 0,
+  "entries_removed": 0,
+  "patterns_promoted": [],
+  "skills_created": [],
+  "suggestions": []
+}
+```
+
+## SPÉCIALISATIONS PAR TYPE DE PROJET
+
+Adapte le niveau de rétention selon `project.type` du manifest :
+
+**`library` / `cli`** — Prioriser les patterns d'API design et conventions publiques
+**`web-app` / `api`** — Prioriser les patterns de sécurité et performance
+**`ml` / `data-pipeline`** — Prioriser les expériences ML et choix de modèles
+**`monorepo`** — Consolider les patterns communs à plusieurs packages
