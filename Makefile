@@ -52,6 +52,8 @@ validate:
 		grep -q "CONTRAT DE SORTIE" "$$f" || { echo "Missing CONTRAT DE SORTIE: $$f"; missing=1; }; \
 	done; \
 	[ $$missing -eq 0 ] || exit 1
+	@echo "=== Checking routing table coverage ==="
+	@python3 -c "import re; hook=open('.claude/hooks/user-prompt-submit.sh').read(); h=set(re.findall(r'\(\"(\w[\w-]*)\"\s*,', hook)); c=open('CLAUDE.md').read()+open('.claude/docs/workflows-table.md').read(); ci=set(re.findall(r'\`(\w[\w-]*)\`\s*\|.*workflows/', c)); sp={'question','other','improve-template'}; u=h-ci-sp; (print('Uncovered intents:',u) or __import__('sys').exit(1)) if u else print(f'All {len(h)} intents covered.')"
 	@echo "=== Testing gen.py end-to-end ==="
 	@python3 scripts/gen.py --manifest examples/web-app.manifest.json --dry-run 2>/dev/null || \
 		python3 -c "\

@@ -96,8 +96,8 @@ jobs:
           hook = open('.claude/hooks/user-prompt-submit.sh').read()
           hook_intents = set(re.findall(r'\("(\w[\w-]*)"\s*,', hook))
 
-          # Extract intents from CLAUDE.md routing table
-          claude = open('CLAUDE.md').read()
+          # Extract intents from CLAUDE.md routing table (table may be in @imported file)
+          claude = open('CLAUDE.md').read() + open('.claude/docs/workflows-table.md').read()
           claude_intents = set(re.findall(r'`(\w[\w-]*)`\s*\|.*workflows/', claude))
 
           # Check coverage (question/other/improve-template are special cases)
@@ -108,7 +108,7 @@ jobs:
               exit(1)
 
           # Check all routing targets exist as files (skip placeholders like [nom].md)
-          targets = re.findall(r'`workflows/([^`\[]+\.md)`', claude)
+          targets = re.findall(r'`workflows/([^`\[]+\.md)`', open('.claude/docs/workflows-table.md').read())
           missing = [t for t in targets if not os.path.exists(f'workflows/{t}')]
           if missing:
               print(f"Routing targets with no file: {missing}")
