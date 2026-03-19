@@ -1,0 +1,26 @@
+# .cursorrules — généré par claudekit depuis project.manifest.json
+# Stack: python, bash / 
+# Projet: Universal Claude Code template — auto-configuring, self-improving, with 14 agents and 14 workflows
+
+## Règles de développement
+- Langage commits : en
+- Tests requis : pytest
+- Linter : ruff
+- Stratégie git : feature-branch
+
+## Guards actifs
+- lint
+- secret_scan
+
+## Agents disponibles (voir .claude/agents/)
+- architect
+- reviewer
+- tester
+- security-auditor
+- debug-detective
+- explorer
+- doc-writer
+- performance-analyst
+- release-manager
+- devops-engineer
+- template-improver

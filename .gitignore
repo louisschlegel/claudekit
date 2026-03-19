@@ -60,3 +60,6 @@ htmlcov/
 .mcp.json
 .template/improvements.log
 learning.md
+
+# Multi-tool compat (committed)
+!AGENTS.md

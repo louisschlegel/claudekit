@@ -57,6 +57,16 @@
     "dependency_audit": true,
     "owasp_check": false
   },
+  "model_routing": {
+    "default": "sonnet",
+    "review": "opus",
+    "simple": "haiku"
+  },
+  "context": {
+    "docs_paths": [],
+    "custom_rules": [],
+    "compact_focus": "architecture decisions, API contracts, current task context"
+  },
   "template": {
     "version": "1.1.0",
     "source": "https://github.com/louisschlegel/claudekit"
