@@ -1,287 +1,88 @@
 # Workflow: MCP Vetting
 
-## DÉCLENCHEUR
-Intent classifié comme `mcp-vetting` par le hook UserPromptSubmit.
-Commande directe : "ajoute ce MCP", "évalue ce serveur MCP", "vette ce MCP", "add MCP server".
+Évaluer et approuver un nouveau serveur MCP avant de l'ajouter au projet.
 
-## OBJECTIF
-Évaluer en sécurité un nouveau serveur MCP avant de l'ajouter définitivement au projet.
-Éviter d'exposer des outils dangereux ou des serveurs non maintenus à Claude.
+## Étapes
 
-## AGENTS IMPLIQUÉS
-1. **Security Auditor** — analyse des permissions et des outils exposés
-2. **Explorer** — cartographie du code source du serveur MCP
-3. **Orchestrateur** — décision finale APPROVE / REJECT / APPROVE_WITH_RESTRICTIONS
+### 1. Recherche (5 min)
+- Trouver le repo GitHub du serveur MCP
+- Vérifier : auteur, stars, dernière activité, issues ouvertes, license
+- Lire le README : quels outils expose-t-il ? Quelles permissions demande-t-il ?
+- Chercher des CVE ou incidents de sécurité connus
 
----
+### 2. Revue de sécurité (10 min)
+- **Outils exposés** : lister chaque tool avec ses paramètres
+- **Permissions réseau** : accède-t-il à internet ? Quels domaines ?
+- **Accès filesystem** : lit/écrit quels chemins ?
+- **Données sensibles** : accède-t-il à des secrets, tokens, ou données utilisateur ?
+- **Code review** : scanner le code source pour des patterns suspects :
+  - `eval()`, `exec()`, command injection
+  - Exfiltration de données (POST vers URLs externes)
+  - Écriture dans des chemins inattendus
 
-## ÉTAPE 1 — Identification du serveur MCP
+### 3. Test sandbox (15 min)
+- Ajouter temporairement dans `.mcp.json` :
+  ```json
+  {"<server-name>": {"command": "...", "args": [...]}}
+  ```
+- Démarrer une session Claude Code de test
+- Tester chaque outil exposé avec des données non-sensibles
+- Vérifier que les réponses sont correctes et dans le format attendu
+- Mesurer la latence et la fiabilité
 
-Collecter les informations de base sur le serveur :
-- [ ] URL du dépôt (GitHub, npm, PyPI)
-- [ ] Nom du package / image Docker
-- [ ] Description des outils exposés
-- [ ] Auteur / organisation
+### 4. Gate de décision
 
-```bash
-# Exemples de sources MCP
-# npm: @modelcontextprotocol/server-github
-# pip: mcp-server-postgres
-# GitHub: https://github.com/org/mcp-server-name
-```
+| Critère | APPROVE | REJECT |
+|---------|---------|--------|
+| Auteur vérifié | Organisation connue ou contributeur actif | Anonymous, pas de profil |
+| Maintenance | Commit < 3 mois | Dernier commit > 1 an |
+| Sécurité | Pas de patterns suspects | eval(), exfiltration, perms excessives |
+| Fonctionnalité | Fait ce qui est annoncé | Comportement inattendu |
+| Performance | Latence < 2s | Timeout fréquents |
 
----
+Décision : **APPROVE** / **APPROVE_WITH_RESTRICTIONS** / **REJECT**
 
-## ÉTAPE 2 — Research Phase (due diligence)
+### 5. Intégration (si approuvé)
+1. Ajouter le serveur à `project.manifest.json` > `mcp_servers[]`
+2. Exécuter `python3 scripts/gen.py` pour régénérer `.mcp.json`
+3. Documenter les restrictions si APPROVE_WITH_RESTRICTIONS
+4. Redémarrer Claude Code
 
-Évaluer la santé et la crédibilité du projet.
+## HANDOFF JSON
 
-### 2a — Métriques GitHub
-```bash
-gh repo view [owner/repo] --json stargazerCount,pushedAt,openIssuesCount,forkCount
-gh repo view [owner/repo] --json licenseInfo
-```
-
-Critères d'évaluation :
-
-| Métrique | Vert | Jaune | Rouge |
-|----------|------|-------|-------|
-| Étoiles | > 100 | 10-100 | < 10 |
-| Dernier commit | < 3 mois | 3-12 mois | > 12 mois |
-| Issues ouvertes | < 20 | 20-100 | > 100 ou 0 (abandonné) |
-| Auteur | Organisation connue | Individu actif | Inconnu |
-| Licence | MIT, Apache 2.0 | BSD, ISC | Propriétaire, absente |
-
-### 2b — Historique des releases
-```bash
-gh release list --repo [owner/repo] --limit 5
-```
-
-Chercher : releases régulières, changelog, politique de versioning sémantique.
-
-### 2c — Vérification npm/PyPI
-```bash
-# npm
-npm info @scope/package-name
-
-# pip
-pip index versions package-name 2>/dev/null | head -5
-```
-
-**Gate 2 :** si score global est ROUGE sur 2+ critères -> REJECT immédiat sans continuer.
-
----
-
-## ÉTAPE 3 — Security Review
-
-Invoquer `security-auditor` avec :
-```
-Cible : [URL repo ou package]
-Demande : analyse les outils exposés, les permissions requises, les risques OWASP
-```
-
-### 3a — Inventaire des outils exposés
-Lire le code source du serveur MCP (fichier principal, README, schema JSON) :
-- Lister chaque outil (`name`, `description`, `inputSchema`)
-- Identifier les opérations sensibles : write filesystem, exec shell, réseau externe, auth tokens
-
-### 3b — Permissions système requises
-Documenter ce que le serveur MCP demande à l'OS :
-```
-Filesystem access : [read-only | read-write | aucun]
-Network access    : [domaines autorisés | tout | aucun]
-Env vars requises : [liste]
-Process execution : [oui | non]
-Database access   : [oui — schéma exposé? | non]
-```
-
-### 3c — Vecteurs d'attaque potentiels
-Vérifier :
-- [ ] Injection de commandes via les paramètres des outils
-- [ ] Path traversal dans les outils filesystem
-- [ ] Exfiltration de données via les outils réseau
-- [ ] Tokens/secrets exposés dans les logs ou réponses
-- [ ] Dépendances vulnérables
-
-```bash
-# Si code disponible localement dans /tmp/mcp-sandbox-[name]/
-npm audit 2>/dev/null || pip-audit 2>/dev/null
-grep -r "exec\|eval\|shell\|spawn" --include="*.js" --include="*.ts" --include="*.py" . \
-  | grep -v "test\|spec\|node_modules"
-```
-
-**Gate 3 :** si un vecteur d'attaque critique est identifié -> REJECT avec rapport détaillé.
-
----
-
-## ÉTAPE 4 — Sandbox Test
-
-Tester le serveur MCP dans un environnement isolé avant de l'ajouter définitivement.
-
-### 4a — Installation temporaire
-```bash
-# Créer un backup du .mcp.json actuel
-cp .mcp.json .mcp.json.bak-$(date +%Y%m%d)
-
-# Ajouter temporairement le serveur MCP sous un nom sandbox
-python3 -c "
-import json
-mcp = json.load(open('.mcp.json'))
-mcp['mcpServers']['[name]-sandbox'] = {
-  'command': '[commande]',
-  'args': ['[args]'],
-  'env': {}
-}
-json.dump(mcp, open('.mcp.json', 'w'), indent=2)
-print('Added [name]-sandbox to .mcp.json')
-"
-```
-
-### 4b — Session de test isolée
-Ouvrir une nouvelle session Claude Code et exécuter les cas de test suivants :
-- [ ] Le serveur démarre correctement (aucune erreur au démarrage)
-- [ ] Les outils listés correspondent à la documentation officielle
-- [ ] Les outils fonctionnent avec des paramètres valides
-- [ ] Aucun outil non documenté n'est exposé
-- [ ] Les erreurs sont gérées proprement (pas de crash, pas de fuite de données)
-
-Cas de test à exécuter :
-```
-Test 1 — Happy path : appeler le premier outil avec des paramètres valides
-Test 2 — Validation : appeler un outil avec des paramètres invalides -> doit retourner une erreur propre
-Test 3 — Sécurité : tenter un path traversal ou injection dans les paramètres -> doit être rejeté
-Test 4 — Scope : vérifier que le serveur n'expose que les outils documentés (list tools)
-```
-
-### 4c — Restauration si problème
-```bash
-# Si le test échoue ou révèle des problèmes
-cp .mcp.json.bak-$(date +%Y%m%d) .mcp.json
-echo "Rolled back .mcp.json to pre-test state"
-```
-
-**Gate 4 :** si le serveur ne démarre pas, expose des outils non documentés, ou échoue les tests de sécurité -> REJECT.
-
----
-
-## ÉTAPE 5 — Décision et intégration
-
-### 5a — Decision Gate
-
-Agréger les résultats des étapes 2, 3, 4 et choisir :
-
-| Décision | Critères |
-|----------|----------|
-| `APPROVE` | Tous les critères verts, tous les tests OK, aucun vecteur d'attaque |
-| `APPROVE_WITH_RESTRICTIONS` | Critères jaunes, ou outils dangereux à bloquer, tests OK |
-| `REJECT` | Un ou plusieurs critères rouges, ou test échoué, ou vecteur critique |
-
-**Si APPROVE_WITH_RESTRICTIONS :** documenter explicitement les restrictions dans `.mcp.json` :
 ```json
 {
-  "mcpServers": {
-    "[name]": {
-      "command": "[commande]",
-      "args": ["[args]"],
-      "env": {},
-      "_allowed_tools": ["tool1", "tool2"],
-      "_blocked_tools": ["tool3"],
-      "_vetting_note": "tool3 expose le filesystem en écriture — non nécessaire pour ce projet"
-    }
-  }
+  "workflow": "mcp-vetting",
+  "status": "approved|approved_with_restrictions|rejected",
+  "server": {
+    "name": "server-name",
+    "repo": "https://github.com/...",
+    "version": "1.2.0",
+    "stars": 450,
+    "last_commit": "2026-03-15"
+  },
+  "security": {
+    "tools_exposed": 5,
+    "network_access": true,
+    "filesystem_access": "read-only",
+    "suspicious_patterns": []
+  },
+  "test_results": {
+    "tools_tested": 5,
+    "tools_passed": 5,
+    "avg_latency_ms": 340
+  },
+  "decision": "approved",
+  "restrictions": [],
+  "next_steps": ["Add to manifest", "Restart Claude Code"]
 }
 ```
-
-### 5b — Intégration permanente (si APPROVE ou APPROVE_WITH_RESTRICTIONS)
-
-```bash
-# 1. Mettre à jour project.manifest.json
-python3 -c "
-import json
-manifest = json.load(open('project.manifest.json'))
-servers = manifest.setdefault('mcp_servers', [])
-if '[name]' not in servers:
-    servers.append('[name]')
-    json.dump(manifest, open('project.manifest.json', 'w'), indent=2)
-    print('Added [name] to mcp_servers in manifest')
-"
-
-# 2. Régénérer la config (settings.local.json + .mcp.json définitif)
-python3 scripts/gen.py
-
-# 3. Nettoyer le backup et l'entrée sandbox
-python3 -c "
-import json
-mcp = json.load(open('.mcp.json'))
-mcp['mcpServers'].pop('[name]-sandbox', None)
-json.dump(mcp, open('.mcp.json', 'w'), indent=2)
-"
-rm -f .mcp.json.bak-*
-```
-
-### 5c — Si REJECT
-
-```bash
-# Restaurer .mcp.json propre
-cp .mcp.json.bak-$(date +%Y%m%d) .mcp.json
-rm -f .mcp.json.bak-*
-```
-
----
 
 ## CONTRAT DE SORTIE
 
-```
-MCP SERVER: [name]
-VERSION: [version testée]
-DECISION: APPROVE | APPROVE_WITH_RESTRICTIONS | REJECT
-
-RESEARCH:
-  Stars: N
-  Last commit: [date relative]
-  Licence: [licence]
-  Maintainer: [org/user]
-
-SECURITY:
-  Tools exposed: N ([liste des noms])
-  Sensitive operations: [liste ou "none"]
-  Vulnerabilities found: N
-  Critical vectors: [liste ou "none"]
-
-SANDBOX TEST: PASS | FAIL
-  Test cases passed: N/4
-
-RESTRICTIONS (si applicable):
-  Allowed tools: [liste]
-  Blocked tools: [liste]
-
-INTEGRATED: yes | no
-MANIFEST UPDATED: yes | no
-LEARNING.MD UPDATED: yes
-```
-
-**HANDOFF JSON (pour orchestrateur) :**
-```json
-{
-  "mcp_server": "[name]",
-  "version": "[version]",
-  "decision": "approve|approve_with_restrictions|reject",
-  "stars": 0,
-  "last_commit_days_ago": 0,
-  "licence": "[licence]",
-  "tools_exposed": [],
-  "sensitive_operations": [],
-  "vulnerabilities_count": 0,
-  "critical_vectors": [],
-  "sandbox_test_passed": true,
-  "sandbox_test_cases": 4,
-  "sandbox_test_passed_count": 4,
-  "restrictions": {
-    "allowed_tools": [],
-    "blocked_tools": []
-  },
-  "integrated": false,
-  "manifest_updated": false,
-  "learning_updated": true
-}
-```
+- [ ] Recherche complétée : repo, auteur, stars, license vérifiés
+- [ ] Revue de sécurité : tous les outils audités, pas de pattern suspect
+- [ ] Test sandbox : tous les outils testés avec succès
+- [ ] Décision documentée : APPROVE/REJECT avec justification
+- [ ] Si approuvé : ajouté au manifest, config régénérée, Claude redémarré
+- [ ] HANDOFF JSON produit

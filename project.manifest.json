@@ -76,7 +76,12 @@
     "cost-analyst",
     "spec-reader",
     "template-improver",
-    "memory-curator"
+    "memory-curator",
+    "compliance-officer",
+    "ai-engineer",
+    "realtime-architect",
+    "data-modeler",
+    "schema-designer"
   ],
   "workflows": [
     "feature",
@@ -112,7 +117,7 @@
     "self_improve_every_n_sessions": 10,
     "learning_file": "learning.md",
     "agent_mode": "mono",
-    "_comment_agent_mode": "mono (default, resource-efficient) | team (parallel worktrees, faster for large tasks)"
+    "injection_defense": true
   },
   "security": {
     "secret_scan": true,

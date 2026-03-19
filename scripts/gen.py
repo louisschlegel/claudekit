@@ -30,6 +30,7 @@ GENERATED_HOOK_NAMES = {
     "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
     "notification.sh", "subagent-stop.sh", "observability.sh",
+    "injection-defender.sh",
 }
 
 
@@ -1377,6 +1378,11 @@ exit 0
 '''
 
 
+def make_injection_defender(manifest: dict) -> str:
+    """Hook: PostToolUse — scans tool outputs for prompt injection attempts."""
+    return open(Path(__file__).parent.parent / ".claude" / "hooks" / "injection-defender.sh").read()
+
+
 def make_subagent_stop(manifest: dict) -> str:
     """Hook: SubagentStop — log subagent completion for observability."""
     return r'''#!/bin/bash
@@ -1609,6 +1615,18 @@ def build_hooks(manifest: dict) -> dict:
         "hooks": post_tool_hooks
     }]
 
+    # Injection defender — scan tool outputs for prompt injection
+    automation = manifest.get("automation", {})
+    if automation.get("injection_defense", True):
+        hooks["PostToolUse"].append({
+            "matcher": "Read|Bash|WebFetch|WebSearch",
+            "hooks": [{
+                "type": "command",
+                "command": "bash .claude/hooks/injection-defender.sh",
+                "timeout": 5
+            }]
+        })
+
     # Stop (toujours)
     hooks["Stop"] = [{
         "hooks": [{
@@ -1809,6 +1827,10 @@ def _build_generated_files(manifest: dict) -> dict:
     files[".claude/hooks/subagent-stop.sh"] = make_subagent_stop(manifest)
     files[".claude/hooks/observability.sh"] = make_observability(manifest)
 
+    automation = manifest.get("automation", {})
+    if automation.get("injection_defense", True):
+        files[".claude/hooks/injection-defender.sh"] = make_injection_defender(manifest)
+
     mcp_servers = build_mcp_servers(manifest)
     if mcp_servers:
         files[".mcp.json"] = json.dumps({"mcpServers": mcp_servers}, indent=2, ensure_ascii=False)
@@ -1982,6 +2004,11 @@ def main(dry_run: bool = False, show_diff: bool = False, preserve_custom: bool =
     (HOOKS_DIR / "observability.sh").write_text(generated[".claude/hooks/observability.sh"])
     (HOOKS_DIR / "observability.sh").chmod(0o755)
     hooks_generated.append("observability.sh")
+
+    if ".claude/hooks/injection-defender.sh" in generated:
+        (HOOKS_DIR / "injection-defender.sh").write_text(generated[".claude/hooks/injection-defender.sh"])
+        (HOOKS_DIR / "injection-defender.sh").chmod(0o755)
+        hooks_generated.append("injection-defender.sh")
 
     # Install pre-push git hook (symlink or copy)
     pre_push_src = HOOKS_DIR / "pre-push.sh"

@@ -21,3 +21,8 @@ Définis dans `.claude/agents/`. Lis le fichier correspondant avant d'invoquer.
 | `spec-reader` | `.claude/agents/spec-reader.md` | Parse cahier des charges → manifest + backlog |
 | `template-improver` | `.claude/agents/template-improver.md` | Auto-amélioration template |
 | `memory-curator` | `.claude/agents/memory-curator.md` | Consolide la mémoire institutionnelle |
+| `compliance-officer` | `.claude/agents/compliance-officer.md` | RGPD, SOC2, PCI-DSS, HIPAA compliance |
+| `ai-engineer` | `.claude/agents/ai-engineer.md` | LLM APIs, RAG, embeddings, model serving |
+| `realtime-architect` | `.claude/agents/realtime-architect.md` | WebSockets, SSE, event sourcing, CQRS |
+| `data-modeler` | `.claude/agents/data-modeler.md` | Schema design, migrations, indexation |
+| `schema-designer` | `.claude/agents/schema-designer.md` | OpenAPI, GraphQL, Protobuf, contract-first |
