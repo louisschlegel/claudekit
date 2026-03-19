@@ -416,8 +416,6 @@ Voir [CONTRIBUTING.md](.github/CONTRIBUTING.md) — bugs, nouveaux agents, stack
 
 Idées et discussions : [GitHub Discussions](https://github.com/louisschlegel/claudekit/discussions)
 
-Roadmap : [Issue #1](https://github.com/louisschlegel/claudekit/issues/1)
-
 ## License
 
 [MIT](LICENSE)
