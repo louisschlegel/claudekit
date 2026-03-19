@@ -1358,8 +1358,10 @@ else:
 INPUT=$(cat)
 MESSAGE=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','Claude needs your attention'))" 2>/dev/null || echo "Claude needs your attention")
 
-# macOS
-if command -v osascript &>/dev/null; then
+# macOS — prefer terminal-notifier (avoids opening Script Editor on click)
+if command -v terminal-notifier &>/dev/null; then
+  terminal-notifier -title "$PROJECT_NAME" -message "$MESSAGE" -sender "com.apple.Terminal" 2>/dev/null &
+elif command -v osascript &>/dev/null; then
   osascript -e "display notification \"$MESSAGE\" with title \"$PROJECT_NAME\"" 2>/dev/null &
 # Linux
 elif command -v notify-send &>/dev/null; then
