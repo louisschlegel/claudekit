@@ -23,9 +23,12 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 
 # Detect if running from a local clone or via curl
+# When piped via curl, BASH_SOURCE is empty or /dev/stdin — always download
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
 IS_LOCAL=false
-if [ -f "$SCRIPT_DIR/scripts/gen.py" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
+if [ -n "$SCRIPT_DIR" ] && [ "$SCRIPT_DIR" != "$(pwd)" ] && [ -f "$SCRIPT_DIR/scripts/gen.py" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/install.sh" ]; then
+  # Only treat as local if running from a DIFFERENT directory than the target
+  # (prevents self-copy when curl|bash is run inside an already-installed project)
   IS_LOCAL=true
   SOURCE_DIR="$SCRIPT_DIR"
 fi
