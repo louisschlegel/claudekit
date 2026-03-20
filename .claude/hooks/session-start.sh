@@ -187,7 +187,29 @@ cache_file.parent.mkdir(parents=True, exist_ok=True)
 cache_file.write_text(json.dumps(cache_data))
 
 if cache_data["update_available"]:
-    print(f"📦 claudekit {latest} disponible (actuel: {current}). Utilise /update-claudekit pour mettre à jour.")
+    # Fetch release notes to detect new configurable features
+    new_features = []
+    try:
+        body = data.get("body", "")
+        # Detect new configurable items in release notes
+        config_keywords = ["toggle", "flag", "automation.", "manifest", "configurable", "setting", "enable", "disable"]
+        for line in body.split("\n"):
+            if any(kw in line.lower() for kw in config_keywords):
+                clean = line.strip().lstrip("-* ")
+                if clean and len(clean) < 120:
+                    new_features.append(clean)
+    except:
+        pass
+
+    msg = f"📦 claudekit {latest} disponible (actuel: {current})."
+    if new_features:
+        msg += f"\n\n🆕 Nouvelles options configurables dans {latest} :"
+        for f in new_features[:5]:
+            msg += f"\n  • {f}"
+        msg += "\n\n→ Utilise /update-claudekit pour mettre à jour, puis Claude te proposera de configurer les nouvelles options."
+    else:
+        msg += " Utilise /update-claudekit pour mettre à jour."
+    print(msg)
 PYUPDATE
 2>/dev/null || echo "")
 fi
