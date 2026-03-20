@@ -6,12 +6,19 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 INPUT=$(cat)
 
-python3 - <<PYEOF 2>/dev/null
-import json, time
+python3 - "$INPUT" "$PROJECT_ROOT" << 'PYEOF' 2>/dev/null
+import json, sys, time
 from pathlib import Path
 
-data = json.loads("""$INPUT""") if """$INPUT""".strip() else {}
-log_path = Path("$PROJECT_ROOT/.template/agent-events.jsonl")
+raw = sys.argv[1] if len(sys.argv) > 1 else ""
+root = sys.argv[2] if len(sys.argv) > 2 else "."
+
+try:
+    data = json.loads(raw) if raw.strip() else {}
+except json.JSONDecodeError:
+    data = {}
+
+log_path = Path(root) / ".template" / "agent-events.jsonl"
 log_path.parent.mkdir(exist_ok=True)
 
 entry = {

@@ -80,7 +80,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Hooks custom (tout ce qui n'est pas géré par claudekit)
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
   if [ -d "$dst/.claude/hooks" ]; then
     for hook in "$dst/.claude/hooks"/*.sh; do
       [ -f "$hook" ] || continue
@@ -92,7 +92,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Agents custom (noms différents des agents claudekit)
-  CLAUDEKIT_AGENTS="architect reviewer tester deployer explorer security-auditor debug-detective doc-writer performance-analyst release-manager data-engineer ml-engineer devops-engineer cost-analyst spec-reader template-improver memory-curator compliance-officer ai-engineer realtime-architect data-modeler schema-designer"
+  CLAUDEKIT_AGENTS="architect reviewer tester deployer explorer security-auditor debug-detective doc-writer performance-analyst release-manager data-engineer ml-engineer devops-engineer cost-analyst spec-reader template-improver memory-curator compliance-officer ai-engineer realtime-architect data-modeler schema-designer devils-advocate"
   if [ -d "$dst/.claude/agents" ]; then
     for agent in "$dst/.claude/agents"/*.md; do
       [ -f "$agent" ] || continue
@@ -104,7 +104,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Workflows custom
-  CLAUDEKIT_WORKFLOWS="feature bugfix hotfix release security-audit dependency-update dependency-audit refactor onboard onboarding self-improve db-migration incident-response performance-baseline publish-package api-design a-b-test data-quality llm-eval spec-to-project code-review monitoring-setup cost-optimization multi-agent-worktrees context-handoff notebook-review cost-dashboard riper"
+  CLAUDEKIT_WORKFLOWS="feature bugfix hotfix release security-audit dependency-update dependency-audit refactor onboard onboarding self-improve db-migration incident-response performance-baseline publish-package api-design a-b-test data-quality llm-eval spec-to-project code-review monitoring-setup cost-optimization multi-agent-worktrees context-handoff notebook-review cost-dashboard riper mcp-vetting agent-teams cost-audit skill-lifecycle"
   if [ -d "$dst/workflows" ]; then
     for wf in "$dst/workflows"/*.md; do
       [ -f "$wf" ] || continue

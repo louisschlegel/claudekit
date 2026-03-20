@@ -62,7 +62,7 @@ if [ "$MANIFEST_CONTENT" = "{}" ] || [ -z "$MANIFEST_CONTENT" ]; then
   SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.local.json"
   MCP_FILE="$PROJECT_ROOT/.mcp.json"
   HOOKS_DIR="$PROJECT_ROOT/.claude/hooks"
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
 
   if [ -f "$SETTINGS_FILE" ]; then
     PERM_COUNT=$(python3 -c "import json; d=json.load(open('$SETTINGS_FILE')); print(len(d.get('permissions',{}).get('allow',[])))" 2>/dev/null || echo "?")

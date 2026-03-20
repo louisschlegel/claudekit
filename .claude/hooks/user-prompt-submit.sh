@@ -60,6 +60,11 @@ INTENT_RULES = [
     ("agent-teams",      ["lance une équipe", "agent team", "team mode", "parallel agents", "multi-agent team", "spawn agents"]),
     ("cost-audit",       ["audit des coûts", "cost audit", "combien ça coûte", "token usage", "cost report", "optimise les coûts tokens"]),
     ("skill-lifecycle",  ["crée une skill", "create skill", "extract skill", "promote pattern", "skill lifecycle", "nouvelle skill"]),
+    ("context-handoff",  ["handoff", "passe le contexte", "context handoff", "session handoff", "sauvegarde le contexte"]),
+    ("cost-dashboard",   ["dashboard de coûts", "cost dashboard", "tableau de bord coûts", "visualise les coûts"]),
+    ("multi-agent",      ["multi-agent", "worktrees parallèles", "parallel worktrees", "lance des agents en parallèle"]),
+    ("notebook",         ["notebook review", "revue notebook", "jupyter review", "analyse le notebook"]),
+    ("riper",            ["riper", "research innovate plan execute review", "méthodologie riper"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]

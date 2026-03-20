@@ -31,7 +31,7 @@ GENERATED_HOOK_NAMES = {
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
     "notification.sh", "subagent-stop.sh", "observability.sh",
     "injection-defender.sh", "context-monitor.sh", "live-handoff.sh",
-    "stop-guard.sh", "session-end.sh", "permission-auto.sh",
+    "stop-guard.sh", "session-end.sh", "permission-auto.sh", "manifest-regen.sh",
     "tool-failure.sh", "test-filter.sh",
 }
 
