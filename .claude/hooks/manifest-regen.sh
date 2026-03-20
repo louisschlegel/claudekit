@@ -19,7 +19,7 @@ python3 -c "import json; json.load(open('$PROJECT_ROOT/project.manifest.json'))"
 }
 
 # Run gen.py silently
-cd "$PROJECT_ROOT" && python3 scripts/gen.py --quiet 2>/dev/null && \
+cd "$PROJECT_ROOT" && (python3 scripts/gen.py --quiet 2>/dev/null || python3 scripts/gen.py 2>/dev/null) && \
   echo '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "✓ project.manifest.json modifié — config régénérée automatiquement (settings.local.json, .mcp.json, hooks)."}}'
 
 exit 0

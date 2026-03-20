@@ -298,7 +298,7 @@ fi
 MANIFEST_CONTENT=$(cat "$TARGET_DIR/project.manifest.json" 2>/dev/null | tr -d '[:space:]')
 if [ "$MANIFEST_CONTENT" != "{}" ] && [ -n "$MANIFEST_CONTENT" ]; then
   echo -e "${CYAN}Regenerating config from existing manifest...${NC}"
-  cd "$TARGET_DIR" && python3 scripts/gen.py --preserve-custom --quiet 2>/dev/null && \
+  cd "$TARGET_DIR" && (python3 scripts/gen.py --preserve-custom --quiet 2>/dev/null || python3 scripts/gen.py --preserve-custom 2>/dev/null) && \
     echo -e "${GREEN}✓${NC} Config regenerated (settings.local.json, hooks, .mcp.json)" || \
     echo -e "${YELLOW}⚠${NC} gen.py failed — run manually: python3 scripts/gen.py --preserve-custom"
 fi
