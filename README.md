@@ -14,23 +14,19 @@ Un template auto-configurant, auto-améliorant et critique par design, qui gén�
 ```bash
 git clone https://github.com/louisschlegel/claudekit mon-projet
 cd mon-projet
-claude
+claude "setup claudekit"
 ```
 
-### Projet legacy — one-liner
+### Projet existant — one-liner
 ```bash
+cd mon-projet/
 curl -fsSL https://raw.githubusercontent.com/louisschlegel/claudekit/main/install.sh | bash
-claude
+claude "setup claudekit"
 ```
 
-### Projet legacy — manuel
-```bash
-cd mon-projet-existant/
-curl -fsSL https://raw.githubusercontent.com/louisschlegel/claudekit/main/install.sh | bash -s .
-claude
-```
+> **Important :** lancez `claude "setup claudekit"` (avec le message entre guillemets), pas juste `claude`. Le message initial déclenche l'interview de configuration automatiquement. Sans message, Claude attend votre input.
 
-Claude détecte le manifest vide → lance le setup automatiquement → génère toute la config.
+Claude détecte votre stack, présente ce qu'il a trouvé, puis pose les questions de configuration une par une → génère toute la config adaptée à votre projet.
 
 ---
 
