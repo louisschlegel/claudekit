@@ -54,6 +54,19 @@ Vérifie si une nouvelle version de claudekit est disponible et l'applique.
 - 🔄 `CLAUDE.md` — remplacé (backup en `.bak` si différent)
 - 🔄 `.template/version.json` — mis à jour
 
+## Post-update : mini re-setup
+
+Après la mise à jour, Claude doit :
+1. Lire les release notes de la nouvelle version (via GitHub API ou CHANGELOG)
+2. Identifier les **nouvelles options configurables** (nouveaux flags dans automation{}, guards{}, security{}, agents[], workflows[])
+3. Comparer avec le `project.manifest.json` actuel du projet
+4. **Proposer les nouvelles options une par une** :
+   - "La v1.4.0 ajoute `automation.injection_defense`. Voulez-vous l'activer ? (recommandé)"
+   - "3 nouveaux agents disponibles : compliance-officer, ai-engineer, realtime-architect. Lesquels activer ?"
+   - "Nouveau workflow mcp-vetting disponible. L'ajouter ?"
+5. Mettre à jour le manifest avec les choix de l'utilisateur
+6. Relancer `python3 scripts/gen.py` pour régénérer la config
+
 ## Vérification automatique au démarrage
 `session-start.sh` vérifie la dernière version toutes les 24h (cache dans `.template/update-check.json`).
-Si une mise à jour est disponible, un message s'affiche dans le contexte de session.
+Si une mise à jour est disponible avec de nouvelles options configurables, le message détaille les nouveautés.
