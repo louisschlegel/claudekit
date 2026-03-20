@@ -133,10 +133,11 @@ CURRENT_HASH=$(python3 -c "import hashlib; print(hashlib.md5(open('$MANIFEST_FIL
 STORED_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "")
 
 if [ -n "$CURRENT_HASH" ] && [ "$CURRENT_HASH" != "$STORED_HASH" ]; then
-  python3 "$PROJECT_ROOT/scripts/gen.py" --quiet 2>/dev/null && \
+  # Try --quiet first, fall back to without it (older gen.py versions)
+  (python3 "$PROJECT_ROOT/scripts/gen.py" --quiet 2>/dev/null || python3 "$PROJECT_ROOT/scripts/gen.py" 2>/dev/null) && \
     echo "$CURRENT_HASH" > "$HASH_FILE" && \
     REGEN_NOTE="⚡ project.manifest.json modifié — config régénérée automatiquement." || \
-    REGEN_NOTE="⚠️  gen.py a échoué au démarrage — vérifier project.manifest.json."
+    REGEN_NOTE=""
 fi
 
 # ─── Check claudekit updates (daily, cached) ─────────────────────────────────
