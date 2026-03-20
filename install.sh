@@ -270,8 +270,8 @@ fi
 
 echo ""
 echo -e "Next step:"
-echo -e "  ${YELLOW}cd $TARGET_DIR && claude${NC}"
+echo -e "  ${YELLOW}cd $TARGET_DIR && claude \"setup claudekit\"${NC}"
 echo ""
-echo -e "Claude will detect your stack and configure everything."
+echo -e "Claude will detect your stack and configure everything via an interactive interview."
 echo -e "If you had custom permissions, run: ${YELLOW}python3 scripts/gen.py --preserve-custom${NC}"
 echo ""
