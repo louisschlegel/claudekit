@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "source": "https://github.com/louisschlegel/claudekit",
   "created": "2026-03-18T00:00:00Z",
   "improvement_history": [
@@ -35,6 +35,13 @@
       "date": "2026-03-19T16:00:00.000000+00:00",
       "type": "minor",
       "summary": "injection-defender hook, 5 agents (compliance/ai/realtime/data-modeler/schema), 7 commands, 3 skills (auto-research/memory-sync/configure), mcp-vetting workflow, manifest-regen hook, automation flags, cost tracking"
+    },
+    {
+      "from": "1.3.0",
+      "to": "1.3.1",
+      "date": "2026-03-20T00:00:00.000000+00:00",
+      "type": "patch",
+      "summary": "19 hooks (context-monitor, live-handoff, stop-guard, session-end, permission-auto, tool-failure, test-filter), 6 rules (path-scoped), plugin system, agent YAML frontmatter, devils-advocate agent, 4 skills (premortem, review-architecture, tdd, handoff), changelog-tracker, auto-update check, security audit fixes"
     }
   ]
 }
