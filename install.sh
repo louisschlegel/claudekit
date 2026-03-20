@@ -46,6 +46,9 @@ if ! command -v claude >/dev/null 2>&1; then
   echo -e "${YELLOW}Warning: Claude Code CLI not found. Install it from https://claude.ai/claude-code${NC}"
 fi
 
+# ── Known claudekit hooks (used by both audit and copy) ──────────────────────
+KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
+
 # ── Audit existing Claude config ──────────────────────────────────────────────
 audit_existing() {
   local dst="$1"
@@ -80,7 +83,6 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Hooks custom (tout ce qui n'est pas géré par claudekit)
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
   if [ -d "$dst/.claude/hooks" ]; then
     for hook in "$dst/.claude/hooks"/*.sh; do
       [ -f "$hook" ] || continue
@@ -127,7 +129,7 @@ copy_files() {
   local src="$1"
   local dst="$2"
 
-  mkdir -p "$dst/.claude/hooks" "$dst/.claude/agents" "$dst/workflows" "$dst/scripts" "$dst/.template"
+  mkdir -p "$dst/.claude/hooks" "$dst/.claude/agents" "$dst/.claude/skills" "$dst/.claude/commands" "$dst/.claude/rules" "$dst/.claude/docs" "$dst/workflows" "$dst/scripts" "$dst/.template"
 
   # Scripts claudekit — toujours mis à jour (ce sont des outils, pas du contenu user)
   cp "$src/scripts/gen.py" "$dst/scripts/gen.py"
@@ -138,11 +140,50 @@ copy_files() {
   cp "$src/scripts/claudekit.py" "$dst/scripts/claudekit.py"
   cp "$src/scripts/migrate-template.py" "$dst/scripts/migrate-template.py"
 
-  # Hooks claudekit gérés — toujours mis à jour (gen.py les régénère de toute façon)
-  cp "$src/.claude/hooks/session-start.sh" "$dst/.claude/hooks/session-start.sh"
-  cp "$src/.claude/hooks/user-prompt-submit.sh" "$dst/.claude/hooks/user-prompt-submit.sh"
-  cp "$src/.claude/hooks/pre-push.sh" "$dst/.claude/hooks/pre-push.sh"
+  # Hooks claudekit — copier TOUS les hooks gérés (gen.py les régénère de toute façon)
+  for hook in "$src/.claude/hooks"/*.sh; do
+    [ -f "$hook" ] || continue
+    hname=$(basename "$hook")
+    # Only copy claudekit-managed hooks, not custom ones
+    is_managed=0
+    for known in $KNOWN_HOOKS; do [ "$hname" = "$known" ] && is_managed=1 && break; done
+    if [ "$is_managed" -eq 1 ]; then
+      cp "$hook" "$dst/.claude/hooks/$hname"
+      chmod +x "$dst/.claude/hooks/$hname"
+    fi
+  done
   # Les hooks custom (non-claudekit) dans hooks/ ne sont pas touchés
+
+  # Skills — toujours mis à jour (claudekit skills, pas du contenu user)
+  for skill in "$src/.claude/skills"/*.md; do
+    [ -f "$skill" ] || continue
+    cp "$skill" "$dst/.claude/skills/$(basename "$skill")"
+  done
+
+  # Commands — toujours mis à jour
+  for cmd in "$src/.claude/commands"/*.md; do
+    [ -f "$cmd" ] || continue
+    cp "$cmd" "$dst/.claude/commands/$(basename "$cmd")"
+  done
+
+  # Rules — ne pas écraser les règles existantes (user may have customized)
+  for rule in "$src/.claude/rules"/*.md; do
+    [ -f "$rule" ] || continue
+    rname=$(basename "$rule")
+    [ ! -f "$dst/.claude/rules/$rname" ] && cp "$rule" "$dst/.claude/rules/$rname"
+  done
+
+  # Docs (agents-table, workflows-table, security-layers) — toujours mis à jour
+  for doc in "$src/.claude/docs"/*.md; do
+    [ -f "$doc" ] || continue
+    cp "$doc" "$dst/.claude/docs/$(basename "$doc")"
+  done
+
+  # Plugin manifest
+  if [ -d "$src/.claude-plugin" ]; then
+    mkdir -p "$dst/.claude-plugin"
+    cp "$src/.claude-plugin/plugin.json" "$dst/.claude-plugin/plugin.json" 2>/dev/null
+  fi
 
   # Agents — cp -n : n'écrase pas les agents existants (custom ou modifiés)
   for agent in "$src/.claude/agents"/*.md; do

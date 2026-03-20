@@ -1382,7 +1382,32 @@ exit 0
 
 def make_injection_defender(manifest: dict) -> str:
     """Hook: PostToolUse — scans tool outputs for prompt injection attempts."""
-    return open(Path(__file__).parent.parent / ".claude" / "hooks" / "injection-defender.sh").read()
+    hook_path = Path(__file__).parent.parent / ".claude" / "hooks" / "injection-defender.sh"
+    if hook_path.exists():
+        return hook_path.read_text()
+    # Fallback: minimal injection defender if source file not available
+    return '''#!/bin/bash
+# Hook: PostToolUse — Injection Defender (minimal fallback)
+INPUT=$(cat)
+python3 - "$INPUT" << 'PYEOF'
+import json, sys, re
+raw = sys.argv[1] if len(sys.argv) > 1 else ""
+if not raw.strip(): sys.exit(0)
+try: event = json.loads(raw)
+except: sys.exit(0)
+tool = event.get("tool_name", "")
+if tool not in ("Read", "Bash", "WebFetch", "WebSearch"): sys.exit(0)
+resp = event.get("tool_response", {})
+content = (resp.get("content", "") if isinstance(resp, dict) else str(resp))[:5000].lower()
+PATTERNS = [r"ignore previous instructions", r"you are now", r"\\bdan mode\\b", r"important:\\s*ignore", r"<!--.*inject"]
+for p in PATTERNS:
+    if re.search(p, content, re.IGNORECASE):
+        print(json.dumps({"decision": "block", "reason": f"Injection detected: {p}"}))
+        sys.exit(2)
+sys.exit(0)
+PYEOF
+exit $?
+'''
 
 
 def make_subagent_stop(manifest: dict) -> str:
