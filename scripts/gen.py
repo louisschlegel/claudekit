@@ -30,7 +30,9 @@ GENERATED_HOOK_NAMES = {
     "session-start.sh", "user-prompt-submit.sh", "pre-bash-guard.sh",
     "post-edit.sh", "stop.sh", "pre-push.sh", "pre-compact.sh",
     "notification.sh", "subagent-stop.sh", "observability.sh",
-    "injection-defender.sh",
+    "injection-defender.sh", "context-monitor.sh", "live-handoff.sh",
+    "stop-guard.sh", "session-end.sh", "permission-auto.sh", "manifest-regen.sh",
+    "tool-failure.sh", "test-filter.sh",
 }
 
 
@@ -1627,14 +1629,41 @@ def build_hooks(manifest: dict) -> dict:
             }]
         })
 
-    # Stop (toujours)
-    hooks["Stop"] = [{
+    # Context monitor — warn when context usage is high
+    hooks["PostToolUse"].append({
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|WebFetch|Agent",
         "hooks": [{
             "type": "command",
-            "command": "bash .claude/hooks/stop.sh",
-            "timeout": 10,
-            "async": True
+            "command": "bash .claude/hooks/context-monitor.sh",
+            "timeout": 3
         }]
+    })
+
+    # Live handoff — track file modifications for session state
+    hooks["PostToolUse"].append({
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/live-handoff.sh",
+            "timeout": 2
+        }]
+    })
+
+    # Stop (toujours) — includes stop-guard
+    hooks["Stop"] = [{
+        "hooks": [
+            {
+                "type": "command",
+                "command": "bash .claude/hooks/stop-guard.sh",
+                "timeout": 5
+            },
+            {
+                "type": "command",
+                "command": "bash .claude/hooks/stop.sh",
+                "timeout": 10,
+                "async": True
+            }
+        ]
     }]
 
     # PostCompact — reload context
@@ -1672,6 +1701,73 @@ def build_hooks(manifest: dict) -> dict:
             "type": "command",
             "command": "bash .claude/hooks/subagent-stop.sh",
             "timeout": 5
+        }]
+    }]
+
+    # SessionEnd — cleanup and telemetry
+    hooks["SessionEnd"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/session-end.sh",
+            "timeout": 5,
+            "async": True
+        }]
+    }]
+
+    # PermissionRequest — auto-approve safe patterns
+    hooks["PermissionRequest"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/permission-auto.sh",
+            "timeout": 3
+        }]
+    }]
+
+    # PostToolUseFailure — log and recover from tool failures
+    hooks["PostToolUseFailure"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/tool-failure.sh",
+            "timeout": 3,
+            "async": True
+        }]
+    }]
+
+    # PreToolUse(Bash) — filter verbose test output
+    hooks["PreToolUse"].append({
+        "matcher": "Bash",
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/test-filter.sh",
+            "timeout": 3
+        }]
+    })
+
+    # StopFailure — fires on API errors (rate limit, billing, server error)
+    hooks["StopFailure"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/tool-failure.sh",
+            "timeout": 3,
+            "async": True
+        }]
+    }]
+
+    # TaskCompleted — quality gate before task completion
+    hooks["TaskCompleted"] = [{
+        "hooks": [{
+            "type": "prompt",
+            "prompt": "Verify the task is truly complete. Check: are there uncommitted changes? Are tests passing? Is there anything left to do? If incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}."
+        }]
+    }]
+
+    # InstructionsLoaded — audit logging of loaded instructions
+    hooks["InstructionsLoaded"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/observability.sh",
+            "timeout": 2,
+            "async": True
         }]
     }]
 

@@ -1,3 +1,11 @@
+---
+name: doc-writer
+description: Technical documentation, API docs, README, ADR
+tools: [Read,Glob,Grep,Write,Edit]
+model: sonnet
+memory: project
+---
+
 # Agent: Doc Writer
 
 ## RÔLE

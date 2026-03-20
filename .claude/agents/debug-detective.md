@@ -1,3 +1,11 @@
+---
+name: debug-detective
+description: Root cause analysis, log investigation
+tools: [Read,Glob,Grep,Bash]
+model: sonnet
+memory: project
+---
+
 # Agent: Debug Detective
 
 ## RÔLE

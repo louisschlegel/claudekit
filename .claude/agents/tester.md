@@ -1,3 +1,11 @@
+---
+name: tester
+description: Test writing, coverage, TDD enforcement
+tools: [Read,Glob,Grep,Bash,Write,Edit]
+model: sonnet
+memory: project
+---
+
 # Agent: Tester
 
 ## RÔLE

@@ -1,6 +1,7 @@
 ---
 name: writer-reviewer
 description: Implement code in a fresh context (Writer), then review it in a separate context (Reviewer) to avoid implementation bias. Use for any feature > 50 lines or touching critical paths.
+effort: low
 triggers:
   - "writer reviewer"
   - "implement and review"

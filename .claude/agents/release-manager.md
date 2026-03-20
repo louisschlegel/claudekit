@@ -1,3 +1,11 @@
+---
+name: release-manager
+description: Versioning, changelog, tagging, GitHub releases
+tools: [Read,Glob,Grep,Bash,Write,Edit]
+model: sonnet
+memory: project
+---
+
 # Agent: Release Manager
 
 ## RÔLE

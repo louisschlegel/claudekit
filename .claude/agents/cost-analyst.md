@@ -1,3 +1,11 @@
+---
+name: cost-analyst
+description: Cloud cost optimization, LLM token reduction, FinOps
+tools: [Read,Glob,Grep,Bash]
+model: sonnet
+memory: project
+---
+
 # Agent: Cost Analyst
 
 ## RÔLE

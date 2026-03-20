@@ -1,7 +1,7 @@
 {
   "project": {
     "name": "claudekit",
-    "description": "Universal Claude Code template \u2014 auto-configuring, self-improving, with 14 agents and 14 workflows",
+    "description": "Universal Claude Code template — auto-configuring, self-improving, with 23 agents, 31 workflows, 15 skills, 11 commands, and 19 hooks",
     "type": "library",
     "language": "en"
   },
@@ -81,7 +81,8 @@
     "ai-engineer",
     "realtime-architect",
     "data-modeler",
-    "schema-designer"
+    "schema-designer",
+    "devils-advocate"
   ],
   "workflows": [
     "feature",
@@ -111,7 +112,10 @@
     "notebook-review",
     "cost-dashboard",
     "riper",
-    "mcp-vetting"
+    "mcp-vetting",
+    "agent-teams",
+    "cost-audit",
+    "skill-lifecycle"
   ],
   "automation": {
     "self_improve_every_n_sessions": 10,

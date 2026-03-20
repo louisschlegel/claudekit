@@ -62,7 +62,7 @@ if [ "$MANIFEST_CONTENT" = "{}" ] || [ -z "$MANIFEST_CONTENT" ]; then
   SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.local.json"
   MCP_FILE="$PROJECT_ROOT/.mcp.json"
   HOOKS_DIR="$PROJECT_ROOT/.claude/hooks"
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
 
   if [ -f "$SETTINGS_FILE" ]; then
     PERM_COUNT=$(python3 -c "import json; d=json.load(open('$SETTINGS_FILE')); print(len(d.get('permissions',{}).get('allow',[])))" 2>/dev/null || echo "?")
@@ -128,6 +128,59 @@ if [ -n "$CURRENT_HASH" ] && [ "$CURRENT_HASH" != "$STORED_HASH" ]; then
     echo "$CURRENT_HASH" > "$HASH_FILE" && \
     REGEN_NOTE="⚡ project.manifest.json modifié — config régénérée automatiquement." || \
     REGEN_NOTE="⚠️  gen.py a échoué au démarrage — vérifier project.manifest.json."
+fi
+
+# ─── Check claudekit updates (daily, cached) ─────────────────────────────────
+UPDATE_NOTE=""
+UPDATE_CACHE="$PROJECT_ROOT/.template/update-check.json"
+VERSION_FILE="$PROJECT_ROOT/.template/version.json"
+if [ -f "$VERSION_FILE" ]; then
+  UPDATE_NOTE=$(python3 - "$VERSION_FILE" "$UPDATE_CACHE" << 'PYUPDATE'
+import json, sys, os, time
+from pathlib import Path
+
+version_file = Path(sys.argv[1])
+cache_file = Path(sys.argv[2])
+
+# Only check once per day
+if cache_file.exists():
+    try:
+        cache = json.loads(cache_file.read_text())
+        if time.time() - cache.get("checked_at", 0) < 86400:
+            if cache.get("update_available"):
+                print(f"📦 claudekit {cache['latest']} disponible (actuel: {cache['current']}). Utilise /update-claudekit pour mettre à jour.")
+            sys.exit(0)
+    except:
+        pass
+
+current = json.loads(version_file.read_text()).get("version", "0.0.0")
+
+# Try to fetch latest version (non-blocking, 3s timeout)
+try:
+    import urllib.request
+    req = urllib.request.Request(
+        "https://api.github.com/repos/louisschlegel/claudekit/releases/latest",
+        headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "claudekit"}
+    )
+    with urllib.request.urlopen(req, timeout=3) as resp:
+        data = json.loads(resp.read())
+        latest = data.get("tag_name", "").lstrip("v")
+except:
+    latest = current
+
+cache_data = {
+    "checked_at": time.time(),
+    "current": current,
+    "latest": latest,
+    "update_available": latest != current and latest > current
+}
+cache_file.parent.mkdir(parents=True, exist_ok=True)
+cache_file.write_text(json.dumps(cache_data))
+
+if cache_data["update_available"]:
+    print(f"📦 claudekit {latest} disponible (actuel: {current}). Utilise /update-claudekit pour mettre à jour.")
+PYUPDATE
+2>/dev/null || echo "")
 fi
 
 # ─── Check dépendances recommandées ──────────────────────────────────────────
@@ -362,7 +415,7 @@ print(f'~\${cost:.3f} (last 5 sessions: {total_input:,} in + {total_output:,} ou
 " 2>/dev/null || echo "")
 fi
 
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$AGENT_MODE" "$LAST_USAGE" "${REGEN_NOTE:-}" "${MISSING_DEPS:-}" <<'PYEOF'
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$AGENT_MODE" "$LAST_USAGE" "${REGEN_NOTE:-}" "${MISSING_DEPS:-}" "${UPDATE_NOTE:-}" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
@@ -373,6 +426,7 @@ agent_mode = sys.argv[19] if len(sys.argv) > 19 else "mono"
 last_usage = sys.argv[20] if len(sys.argv) > 20 else ""
 regen_note = sys.argv[21] if len(sys.argv) > 21 else ""
 missing_deps = sys.argv[22] if len(sys.argv) > 22 else ""
+update_note = sys.argv[23] if len(sys.argv) > 23 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -429,5 +483,7 @@ if missing_deps.strip():
     import re
     deps = [d.strip() for d in re.split(r'\\n', missing_deps) if d.strip()]
     ctx += f"\n\n=== DÉPENDANCES RECOMMANDÉES MANQUANTES ===\n" + "\n".join(deps)
+if update_note:
+    ctx += f"\n\n{update_note}"
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF

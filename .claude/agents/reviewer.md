@@ -1,3 +1,11 @@
+---
+name: reviewer
+description: Code review, security, performance analysis
+tools: [Read,Glob,Grep,Bash]
+model: opus
+memory: project
+---
+
 # Agent: Reviewer
 
 ## RÔLE

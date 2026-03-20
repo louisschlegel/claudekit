@@ -1,3 +1,11 @@
+---
+name: deployer
+description: Deployment, rollback, blue-green, canary strategies
+tools: [Read,Glob,Grep,Bash]
+model: sonnet
+memory: project
+---
+
 # Agent: Deployer
 
 ## RÔLE

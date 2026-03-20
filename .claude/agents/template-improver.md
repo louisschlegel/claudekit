@@ -1,3 +1,11 @@
+---
+name: template-improver
+description: Auto-improve claudekit template from friction observations
+tools: [Read,Glob,Grep,Write,Edit]
+model: sonnet
+memory: project
+---
+
 # Agent: Template Improver
 
 ## RÔLE

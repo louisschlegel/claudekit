@@ -4,6 +4,20 @@
 
 ---
 
+## PHILOSOPHIE — ESPRIT CRITIQUE OBLIGATOIRE
+
+**Ne jamais appliquer bêtement.** Chaque décision technique doit être challengée avant l'implémentation.
+
+- **Avant de coder** : questionner le besoin, évaluer les conséquences, proposer des alternatives
+- **Pendant** : signaler les contradictions avec l'existant, les risques de dette technique, les edge cases non couverts
+- **Après** : vérifier que c'est testable, réversible, et maintenable par quelqu'un d'autre dans 6 mois
+- **Pour les décisions d'architecture** : toujours lancer `/premortem` ou invoquer `devils-advocate` avant d'implémenter
+- **Pour les reviews** : chercher ce qui MANQUE, pas seulement ce qui est présent
+
+Voir `.claude/rules/critical-thinking.md` pour les règles détaillées.
+
+---
+
 ## PREMIER DÉMARRAGE
 
 Si `project.manifest.json` est vide (`{}`) :

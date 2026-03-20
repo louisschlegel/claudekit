@@ -1,6 +1,7 @@
 ---
 name: two-correction
 description: After 2 corrections on the same issue in a session, clear context and restart with an improved prompt. Prevents correction loops that degrade output quality.
+effort: low
 triggers:
   - "correction loop"
   - "same issue again"

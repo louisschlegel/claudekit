@@ -1,6 +1,8 @@
 ---
 name: configure
 description: Modify claudekit settings via natural language — toggle hooks, add/remove MCP servers, change guards, etc.
+effort: medium
+user-invocable: true
 triggers:
   - "désactive les notifs"
   - "active les notifs"

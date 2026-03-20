@@ -26,3 +26,4 @@ Définis dans `.claude/agents/`. Lis le fichier correspondant avant d'invoquer.
 | `realtime-architect` | `.claude/agents/realtime-architect.md` | WebSockets, SSE, event sourcing, CQRS |
 | `data-modeler` | `.claude/agents/data-modeler.md` | Schema design, migrations, indexation |
 | `schema-designer` | `.claude/agents/schema-designer.md` | OpenAPI, GraphQL, Protobuf, contract-first |
+| `devils-advocate` | `.claude/agents/devils-advocate.md` | Challenge decisions, find risks, propose alternatives |

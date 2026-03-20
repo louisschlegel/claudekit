@@ -2,9 +2,9 @@
 
 [![Validate](https://github.com/louisschlegel/claudekit/actions/workflows/validate.yml/badge.svg)](https://github.com/louisschlegel/claudekit/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](.template/version.json)
+[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](.template/version.json)
 
-Un template auto-configurant, auto-améliorant, qui génère toute l'infrastructure Claude Code adaptée à n'importe quel projet — hooks, permissions, MCP servers, guards qualité, sous-agents, workflows complets — à partir d'un simple interview conversationnel.
+Un template auto-configurant, auto-améliorant et critique par design, qui génère toute l'infrastructure Claude Code adaptée à n'importe quel projet — 19 hooks, 23 agents, 31 workflows, 15 skills, 11 commands, 7 rules, config generator, injection defense, auto-update — à partir d'un simple interview conversationnel.
 
 ---
 
@@ -38,19 +38,20 @@ Claude détecte le manifest vide → lance le setup automatiquement → génère
 
 ```
 ton-projet/
-├── CLAUDE.md                    # Orchestrateur — routing 23 intents
+├── CLAUDE.md                    # Orchestrateur — routing 32 intents
 ├── project.manifest.json        # Config générée lors du setup
 ├── learning.md                  # Mémoire institutionnelle (auto-alimentée)
 ├── .mcp.json                    # Serveurs MCP configurés
 ├── .claude/
 │   ├── settings.local.json      # Permissions Bash adaptées à ton stack
-│   └── hooks/
-│       ├── session-start.sh     # Contexte session + 7 signaux opérationnels
-│       ├── user-prompt-submit.sh # Intent classification + injection detection
-│       ├── pre-bash-guard.sh    # Blocage commandes destructives
-│       ├── post-edit.sh         # Guards qualité (lint, type-check, migrations)
-│       └── stop.sh              # Auto-learning en fin de session
-└── ...                          # Tes 16 agents et 22 workflows
+│   ├── hooks/                   # 19 hooks
+│   ├── agents/                  # 23 agents (YAML frontmatter: tools, model, memory)
+│   ├── skills/                  # 15 skills (TDD, premortem, code-review, configure, etc.)
+│   ├── commands/                # 11 commands (/check-security, /new-module, etc.)
+│   └── rules/                   # 7 path-scoped rules (security, testing, critical-thinking)
+├── workflows/                   # 31 workflows end-to-end
+├── .claude-plugin/plugin.json   # Plugin system compatibility
+└── examples/claude-md/          # 4 example CLAUDE.md (Next.js, Django, Go, Rust)
 ```
 
 ---
@@ -59,7 +60,7 @@ ton-projet/
 
 ```
 template/
-├── CLAUDE.md                        # Orchestrateur — routing table (23 intents) + règles
+├── CLAUDE.md                        # Orchestrateur — routing table (32 intents) + règles
 ├── project.manifest.json            # {} → déclenche setup | rempli → contexte
 ├── project.manifest.EXAMPLE.json   # Référence complète du schema
 ├── learning.md.template             # Template pour la mémoire persistante
@@ -82,9 +83,9 @@ template/
 │
 ├── .claude/
 │   ├── hooks/
-│   │   ├── session-start.sh         # Bootstrap (40+ détecteurs stack + 7 signaux)
-│   │   └── user-prompt-submit.sh    # Bootstrap (23 intents + 8 patterns injection)
-│   └── agents/                      # 16 agents spécialisés
+│   │   ├── session-start.sh         # Bootstrap (40+ détecteurs stack + 12 signaux)
+│   │   └── user-prompt-submit.sh    # Bootstrap (32 intents + 8 patterns injection)
+│   └── agents/                      # 23 agents spécialisés
 │       ├── architect.md             # Conception + ADR + JSON handoff
 │       ├── reviewer.md              # Code review (BLOCKER/WARNING/SUGGESTION)
 │       ├── tester.md                # Tests exhaustifs
@@ -102,7 +103,7 @@ template/
 │       ├── devops-engineer.md       # Infra, CI/CD, observabilité, résilience
 │       └── template-improver.md     # Meta-agent : améliore le template
 │
-├── workflows/                       # 22 workflows end-to-end
+├── workflows/                       # 31 workflows end-to-end
 │   ├── feature.md                   # Feature branch → merge + auto-learn
 │   ├── bugfix.md                    # Bug → root cause → test → fix
 │   ├── hotfix.md                    # Correctif urgent prod (express)
@@ -139,8 +140,9 @@ template/
 ### 1. Intent classification (UserPromptSubmit hook)
 
 Chaque message est analysé avant d'arriver à Claude :
-- **Injection detection** : bloque 8 patterns de prompt injection
-- **Intent classification** : 23 intents détectés automatiquement
+- **Injection detection** : bloque 50+ patterns de prompt injection (5 catégories)
+- **Intent classification** : 32 intents détectés automatiquement
+- **Output injection defense** : scanne les résultats Read/Bash/WebFetch pour les injections
 
 | Intent | Mots-clés déclencheurs |
 |--------|----------------------|
@@ -172,7 +174,7 @@ Chaque message est analysé avant d'arriver à Claude :
 
 **Manifest vide** → détection automatique du stack (40+ marqueurs) : package.json, requirements.txt, go.mod, Cargo.toml, dbt_project.yml, MLproject, pubspec.yaml, build.gradle, *.tf, serverless.yml, etc.
 
-**Manifest rempli** → 7 signaux opérationnels injectés à chaque session :
+**Manifest rempli** → 12 signaux opérationnels injectés à chaque session :
 
 | Signal | Source |
 |--------|--------|
@@ -227,6 +229,13 @@ Tous les agents ont un **HANDOFF JSON structuré** pour passage de contexte, et 
 | `ml-engineer` | MLOps : framing → train → serve → monitor | Scripts ML |
 | `devops-engineer` | Infra, CI/CD, observabilité, résilience | Dockerfile, CI, IaC |
 | `template-improver` | Améliore le template lui-même | Fichiers template |
+| `memory-curator` | Consolide la mémoire institutionnelle | learning.md |
+| `compliance-officer` | RGPD, SOC2, PCI-DSS, HIPAA compliance | — |
+| `ai-engineer` | LLM APIs, RAG, embeddings, model serving | — |
+| `realtime-architect` | WebSockets, SSE, event sourcing, CQRS | — |
+| `data-modeler` | Schema design, migrations, indexation | — |
+| `schema-designer` | OpenAPI, GraphQL, Protobuf, contract-first | — |
+| `devils-advocate` | Challenge decisions, find risks, alternatives | — |
 
 ---
 
@@ -272,7 +281,11 @@ Le dossier [`examples/`](examples/) contient des manifests pré-configurés :
 | [`iac.manifest.json`](examples/iac.manifest.json) | Terraform + AWS + EKS + Kubernetes |
 | [`cli.manifest.json`](examples/cli.manifest.json) | Python CLI (Typer + Rich) → PyPI |
 
-Copier le manifest le plus proche de ton projet, le renommer `project.manifest.json`, puis lancer `python3 scripts/gen.py`.
+Le dossier [`examples/claude-md/`](examples/claude-md/) contient des CLAUDE.md pré-écrits pour des stacks spécifiques :
+- `nextjs-saas.md` — Next.js + Supabase + Stripe + Vercel
+- `django-api.md` — Django + DRF + Celery + PostgreSQL
+- `go-microservice.md` — Go + gRPC + PostgreSQL + Kubernetes
+- `rust-api.md` — Rust + Axum + SQLx + PostgreSQL
 
 ---
 
@@ -283,8 +296,8 @@ Copier le manifest le plus proche de ton projet, le renommer `project.manifest.j
 | Fichier | Ce qui est généré |
 |---------|-------------------|
 | `.claude/settings.local.json` | Permissions Bash adaptées au stack |
-| `.claude/hooks/session-start.sh` | Contexte + 7 signaux opérationnels |
-| `.claude/hooks/user-prompt-submit.sh` | 23 intents + injection detection |
+| `.claude/hooks/session-start.sh` | Contexte + 12 signaux opérationnels |
+| `.claude/hooks/user-prompt-submit.sh` | 32 intents + injection detection |
 | `.git/hooks/pre-push` | Secret scan + lint + tests avant chaque push (installé par gen.py) |
 | `scripts/migrate-template.py` | Migration automatique manifest entre versions |
 | `.claude/hooks/pre-bash-guard.sh` | Blocage commandes destructives |
@@ -308,12 +321,14 @@ Session → stop.sh → self-improve.py (observation JSONL)
 
 ---
 
-## 4 couches de sécurité indépendantes
+## 6 couches de sécurité indépendantes
 
 1. **Permissions whitelist** — seules les commandes nécessaires au stack sont autorisées
-2. **Pre-tool gate** — bloque les commandes destructives avant exécution
+2. **Pre-tool gate** — bloque les commandes destructives (5 catégories, case-insensitive)
 3. **Post-edit guards** — lint + type-check + scan secrets après chaque édition
-4. **Prompt injection detection** — bloque les tentatives de manipulation
+4. **Prompt injection detection** — bloque les tentatives de manipulation dans les messages
+5. **Output injection defense** — scanne les résultats Read/Bash/WebFetch pour les injections (50+ patterns)
+6. **Permission auto-approval** — auto-approve les read-only, bloque les accès sensibles (.env, .ssh, /etc/)
 
 ---
 
@@ -407,6 +422,53 @@ make changelog     # Met à jour CHANGELOG.md depuis git log
 | [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) | Ajouter un agent, un workflow, un stack |
 | [`SECURITY.md`](SECURITY.md) | Responsible disclosure + design sécurité |
 | [`examples/`](examples/) | Manifests pré-configurés pour 4 types de projet |
+
+---
+
+## Skills & Commands
+
+### Skills (invocables par Claude ou manuellement)
+
+| Skill | Description |
+|-------|-------------|
+| `/code-review` | 9 agents en parallèle → verdict Ready/Needs Attention/Needs Work |
+| `/tdd` | Red-Green-Refactor TDD enforcement |
+| `/premortem` | Imaginer l'échec → prévenir les risques |
+| `/review-architecture` | Analyse de trade-offs composant par composant |
+| `/handoff` | Sauvegarde structurée du contexte session |
+| `/configure` | Modifier le manifest en langage naturel |
+| `/auto-research` | Self-improving skill eval loop |
+| `/memory-sync` | Promouvoir learning.md → custom_rules |
+| `/update-claudekit` | Vérifier et appliquer les mises à jour |
+| `/changelog-tracker` | Suivre les updates Claude Code |
+
+### Commands (playbooks ad-hoc)
+
+| Command | Description |
+|---------|-------------|
+| `/generate-adr` | Architecture Decision Record generator |
+| `/check-security` | Audit de sécurité rapide |
+| `/new-module` | Scaffold adapté au stack |
+| `/new-entity` | Générer model + migration + CRUD + tests |
+| `/check-backend` | Health check backend |
+| `/incident-response` | Triage → diagnose → fix → post-mortem |
+| `/deploy-checklist` | Checklist pré-déploiement |
+| `/cost-report` | Rapport d'utilisation tokens/coûts |
+| `/setup-rules` | Auto-générer .claude/rules/ |
+| `/context-status` | État du contexte et recommandations |
+| `/secret-rotation` | Rotation de secrets en production |
+
+---
+
+## Auto-update
+
+claudekit vérifie automatiquement les mises à jour à chaque session (cache 24h). Si une nouvelle version est disponible :
+
+```
+📦 claudekit 1.4.0 disponible (actuel: 1.3.1). Utilise /update-claudekit pour mettre à jour.
+```
+
+Les fichiers custom (manifest, learning.md, agents perso, workflows perso) sont **toujours préservés**.
 
 ---
 
