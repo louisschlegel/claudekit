@@ -87,13 +87,22 @@ if [ "$MANIFEST_CONTENT" = "{}" ] || [ -z "$MANIFEST_CONTENT" ]; then
 
   EXISTING_CLAUDE_CLEAN=$(printf "%b" "$EXISTING_CLAUDE")
 
+  # Show a visible message to the user in the terminal
+  echo "" >&2
+  echo -e "\033[1;33m╔══════════════════════════════════════════════════════════╗\033[0m" >&2
+  echo -e "\033[1;33m║  claudekit — Setup requis                               ║\033[0m" >&2
+  echo -e "\033[1;33m║  Claude va te poser quelques questions pour configurer.  ║\033[0m" >&2
+  echo -e "\033[1;33m║  Tape juste Enter ou attends — il démarre tout seul.    ║\033[0m" >&2
+  echo -e "\033[1;33m╚══════════════════════════════════════════════════════════╝\033[0m" >&2
+  echo "" >&2
+
   python3 - "$LEGACY_NOTE" "$STACK_SECTION" "$EXISTING_CLAUDE_CLEAN" <<'PYEOF'
 import json, sys
 legacy = sys.argv[1]
 stack = sys.argv[2]
 existing_claude = sys.argv[3]
 lines = ["=== SETUP REQUIS ==="]
-lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans attendre de message utilisateur.", ""]
+lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans attendre de message utilisateur. Ne reste pas silencieux — l'utilisateur voit un prompt vide et attend que tu parles.", ""]
 if legacy:
     lines += [legacy, ""]
 lines += ["Stack detecte :", stack, ""]

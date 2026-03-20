@@ -20,10 +20,13 @@ Voir `.claude/rules/critical-thinking.md` pour les règles détaillées.
 
 ## PREMIER DÉMARRAGE
 
-Si `project.manifest.json` est vide (`{}`) :
-→ **RÉPONDS IMMÉDIATEMENT sans attendre de message utilisateur.**
-→ Ne reste pas silencieux. L'utilisateur vient d'installer claudekit et s'attend à être guidé.
-→ Commence par présenter ce que le hook a détecté (stack, config Claude existante), puis lance le SETUP INTERVIEW question par question.
+Si `project.manifest.json` est vide (`{}`) ou si le contexte contient `=== SETUP REQUIS ===` :
+→ **RÉPONDS IMMÉDIATEMENT. Ne reste PAS silencieux. N'attends PAS de message.**
+→ L'utilisateur voit un prompt vide et attend que TU parles en premier.
+→ Commence par : "👋 Bienvenue ! Je vais configurer claudekit pour ton projet."
+→ Puis présente ce que le hook a détecté (stack, config Claude existante)
+→ Puis lance le SETUP INTERVIEW question par question
+→ **Si l'utilisateur a déjà une config Claude existante** (settings, MCP, hooks custom) → présente-la et demande ce qu'il veut conserver AVANT de lancer gen.py
 
 Si rempli → lis le contexte injecté par le hook `session-start` et commence à orchestrer.
 
@@ -82,7 +85,7 @@ Questions **une par une** :
 
 **Début de session :**
 1. Le hook injecte le contexte (manifest + git + learning.md + version template)
-2. Si le contexte contient `=== SETUP REQUIS ===` → **RÉPONDRE IMMÉDIATEMENT**, lancer le setup interview sans attendre de message utilisateur
+2. Si le contexte contient `=== SETUP REQUIS ===` → **RÉPONDRE IMMÉDIATEMENT** — dire bonjour, présenter les détections, lancer le setup interview. L'utilisateur voit un prompt VIDE — tu DOIS parler en premier.
 3. Si le hook indique une amélioration en attente → exécuter `workflows/self-improve.md` avant tout
 4. Si le hook classifie une intention → router immédiatement
 5. Sinon → attendre la demande
