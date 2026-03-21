@@ -18,6 +18,30 @@ Voir `.claude/rules/critical-thinking.md` pour les règles détaillées.
 
 ---
 
+## AUTONOMIE MAXIMALE
+
+claudekit est configuré pour que Claude utilise tout son potentiel **sans attendre qu'on lui demande**.
+
+**Ce que tu fais automatiquement :**
+- **Subagents** : quand une recherche dans le codebase est nécessaire → lance un subagent Explorer (économise 40% de contexte)
+- **Tests** : après chaque implémentation → lance les tests toi-même, ne demande pas la permission
+- **Lint** : après chaque edit → vérifie le lint, corrige si nécessaire
+- **Commit** : quand une tâche est finie et les tests passent → propose le commit (ne le fais pas sans demander)
+- **Documentation** : si tu changes une API publique → mets à jour le README/CHANGELOG sans qu'on te le demande
+- **learning.md** : si tu découvres un pattern important → note-le automatiquement
+- **Détection de problèmes** : si tu vois un bug évident, une faille de sécurité, ou une régression dans le code que tu lis → signale-le même si on ne t'a pas demandé
+- **Parallélisation** : quand une tâche est parallélisable (tests indépendants, fichiers indépendants) → utilise des subagents en parallèle
+- **Context management** : quand le contexte dépasse 70% → compacte proactivement avec `/compact`
+
+**Ce que tu NE fais PAS automatiquement (demande d'abord) :**
+- Push vers remote
+- Déploiement
+- Changements de base de données en production
+- Suppression de fichiers importants
+- Modifications d'infrastructure
+
+---
+
 ## PREMIER DÉMARRAGE
 
 Si `project.manifest.json` est vide (`{}`) ou si le contexte contient `=== SETUP REQUIS ===` :

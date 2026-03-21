@@ -1842,6 +1842,18 @@ def build_settings(manifest: dict) -> dict:
     if mcp_servers:
         settings["enabledMcpjsonServers"] = mcp_servers
 
+    # Autonomous mode — acceptEdits by default so Claude works without constant approvals
+    automation = manifest.get("automation", {})
+    permission_mode = automation.get("permission_mode", "acceptEdits")
+    settings["permissions"]["defaultMode"] = permission_mode
+
+    # Sandbox enabled by default — OS-level isolation + auto-approve bash
+    if automation.get("sandbox", True):
+        settings["sandbox"] = {
+            "enabled": True,
+            "autoAllowBashIfSandboxed": True,
+        }
+
     return settings
 
 
