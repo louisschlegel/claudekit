@@ -380,6 +380,7 @@ MODEL_ROUTING_MAP = {
     "sonnet": "claude-sonnet-4-6",
     "opus":   "claude-opus-4-6",
     "haiku":  "claude-haiku-4-5-20251001",
+    "opusplan": "claude-sonnet-4-6",  # opusplan: Opus for planning, Sonnet for execution
 }
 
 
@@ -1853,6 +1854,11 @@ def build_settings(manifest: dict) -> dict:
             "enabled": True,
             "autoAllowBashIfSandboxed": True,
         }
+
+    # Effort level
+    effort = model_routing.get("effort", "")
+    if effort in ("low", "medium", "high"):
+        settings["effortLevel"] = effort
 
     return settings
 

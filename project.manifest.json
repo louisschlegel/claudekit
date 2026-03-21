@@ -115,7 +115,9 @@
     "mcp-vetting",
     "agent-teams",
     "cost-audit",
-    "skill-lifecycle"
+    "skill-lifecycle",
+    "remote-dev",
+    "monitoring"
   ],
   "automation": {
     "self_improve_every_n_sessions": 10,
@@ -131,7 +133,8 @@
   "model_routing": {
     "default": "sonnet",
     "review": "opus",
-    "simple": "haiku"
+    "simple": "haiku",
+    "strategy": "opusplan"
   },
   "template": {
     "version": "1.3.1",
