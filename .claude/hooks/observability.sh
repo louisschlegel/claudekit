@@ -13,15 +13,13 @@ if [[ "$TOOL_NAME" != "Edit" && "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Bash
   exit 0
 fi
 
-python3 - "$TOOL_NAME" "$PROJECT_ROOT" << 'PYEOF' 2>/dev/null
+python3 - <<PYEOF 2>/dev/null
 import json, time, sys
 from pathlib import Path
 
-tool = sys.argv[1] if len(sys.argv) > 1 else "unknown"
-root = sys.argv[2] if len(sys.argv) > 2 else "."
-
 try:
-    log_path = Path(root) / ".template" / "agent-events.jsonl"
+    tool = "$TOOL_NAME"
+    log_path = Path("$PROJECT_ROOT/.template/agent-events.jsonl")
     log_path.parent.mkdir(exist_ok=True)
     entry = {
         "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -30,7 +28,7 @@ try:
     }
     with open(log_path, "a") as f:
         f.write(json.dumps(entry) + "\n")
-except Exception:
+except:
     pass
 PYEOF
 

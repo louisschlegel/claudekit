@@ -32,6 +32,7 @@ claudekit est configuré pour que Claude utilise tout son potentiel **sans atten
 - **Détection de problèmes** : si tu vois un bug évident, une faille de sécurité, ou une régression dans le code que tu lis → signale-le même si on ne t'a pas demandé
 - **Parallélisation** : quand une tâche est parallélisable (tests indépendants, fichiers indépendants) → utilise des subagents en parallèle
 - **Context management** : quand le contexte dépasse 70% → compacte proactivement avec `/compact`
+- **Instinct Loop** : si tu remarques un pattern répétitif que l'utilisateur applique → `python3 scripts/instinct-loop.py --add-observation "trigger" "action" "domain"`. Les clusters matures deviennent des skills ou des règles CLAUDE.md via `/evolve`.
 
 **Ce que tu NE fais PAS automatiquement (demande d'abord) :**
 - Push vers remote
@@ -74,7 +75,9 @@ Questions **une par une** :
 **Bloc 3 — Workflow** : stratégie git, CI/CD, cible déploiement, auto-deploy
 
 **Bloc 4 — Automatisations Claude**
-- MCP servers (à installer) : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`
+- MCP servers (à installer) : `filesystem`, `github`, `postgres`, `sqlite`, `brave-search`, `slack`, `linear`, `notion`, `playwright`, `desktop-commander`, `context7`, `sequential-thinking`, `memory` (knowledge-graph), `sentry`, `stripe`, `figma`
+  → Catalogue complet avec commandes d'installation : `.claude/docs/mcp-catalog.md`
+- Claude Code comme MCP server : expose les outils Claude Code à d'autres clients MCP (Cursor, Windsurf) via `claude mcp serve`
 - Intégrations natives Claude.ai (zéro config) : `gmail`, `google-calendar`, `canva`, `claude-in-chrome`
 - Guards : lint ? type-check ? test auto ? migrations ? i18n ?
 - Workflows à activer (voir liste complète dans `.claude/docs/workflows-table.md`)
@@ -117,6 +120,7 @@ Questions **une par une** :
 **Fin de session :**
 - Le hook `stop.sh` lance `scripts/self-improve.py` en async
 - Pense à mettre à jour `learning.md` si des patterns importants ont été découverts
+- **Auto-évolution** : si tu observes un pattern comportemental récurrent → `python3 scripts/instinct-loop.py --add-observation "trigger" "action" "domain"`. Après plusieurs sessions, lance `bash scripts/evolve.sh` pour voir les clusters candidats à promotion.
 
 ---
 
@@ -164,6 +168,8 @@ Pour les tâches complexes (multi-fichiers, architecture, > 50 lignes) :
 ## GESTION DU CONTEXTE
 
 - **Compacte à 70%** d'utilisation du contexte (pas 90%) — utilise `/compact [focus]`
+- **Quand tu compactes, TOUJOURS préserver** : (1) fichiers modifiés cette session, (2) commandes de test qui échouent + output, (3) décisions d'architecture prises, (4) statut de la tâche en cours et prochaines étapes
+- **`/btw`** pour les questions rapides sans polluer le contexte (réponse en overlay, jamais dans l'historique)
 - Entre deux tâches non liées → `/clear` pour repartir propre
 - **Règle des 2 corrections** : si tu corriges deux fois la même chose → `/clear` + reformuler
 - Pour les recherches dans la codebase → délègue à un subagent (économise 40% de tokens)

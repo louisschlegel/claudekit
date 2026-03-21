@@ -33,6 +33,8 @@ GENERATED_HOOK_NAMES = {
     "injection-defender.sh", "context-monitor.sh", "live-handoff.sh",
     "stop-guard.sh", "session-end.sh", "permission-auto.sh", "manifest-regen.sh",
     "tool-failure.sh", "test-filter.sh",
+    "worktree-create.sh", "worktree-remove.sh", "teammate-idle.sh",
+    "config-change.sh", "elicitation.sh", "elicitation-result.sh",
 }
 
 
@@ -1797,6 +1799,64 @@ def build_hooks(manifest: dict) -> dict:
         }]
     }]
 
+    # WorktreeCreate — log worktree creation for agent-teams observability
+    hooks["WorktreeCreate"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/worktree-create.sh",
+            "timeout": 10,
+            "async": True
+        }]
+    }]
+
+    # WorktreeRemove — log worktree removal and clean up temp files
+    hooks["WorktreeRemove"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/worktree-remove.sh",
+            "timeout": 10,
+            "async": True
+        }]
+    }]
+
+    # TeammateIdle — redistribute pending tasks when an agent goes idle
+    hooks["TeammateIdle"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/teammate-idle.sh",
+            "timeout": 5,
+            "async": True
+        }]
+    }]
+
+    # ConfigChange — decision control: block changes to protected config keys
+    hooks["ConfigChange"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/config-change.sh",
+            "timeout": 5
+        }]
+    }]
+
+    # Elicitation — decision control: intercept MCP structured input requests
+    hooks["Elicitation"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/elicitation.sh",
+            "timeout": 10
+        }]
+    }]
+
+    # ElicitationResult — log completed MCP elicitation results
+    hooks["ElicitationResult"] = [{
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/elicitation-result.sh",
+            "timeout": 5,
+            "async": True
+        }]
+    }]
+
     return hooks
 
 
@@ -1848,6 +1908,9 @@ def build_settings(manifest: dict) -> dict:
     permission_mode = automation.get("permission_mode", "acceptEdits")
     settings["permissions"]["defaultMode"] = permission_mode
 
+    # Prevent bypassing permission mode — locks down --dangerously-skip-permissions
+    settings["permissions"]["disableBypassPermissionsMode"] = "disable"
+
     # Sandbox enabled by default — OS-level isolation + auto-approve bash
     if automation.get("sandbox", True):
         settings["sandbox"] = {
@@ -1859,6 +1922,22 @@ def build_settings(manifest: dict) -> dict:
     effort = model_routing.get("effort", "")
     if effort in ("low", "medium", "high"):
         settings["effortLevel"] = effort
+
+    # Status line — real-time HUD
+    statusline_script = ROOT / "scripts" / "statusline.sh"
+    if statusline_script.exists():
+        settings["statusLine"] = {
+            "type": "command",
+            "command": f"bash {statusline_script}",
+        }
+
+    # File suggestion — fast @ autocomplete
+    file_suggestion_script = ROOT / "scripts" / "file-suggestion.sh"
+    if file_suggestion_script.exists():
+        settings["fileSuggestion"] = {
+            "type": "command",
+            "command": f"bash {file_suggestion_script}",
+        }
 
     return settings
 

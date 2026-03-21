@@ -108,6 +108,86 @@ for issue in data.get('results',[]):
 
 Include static analysis results in the findings JSON output.
 
+## Outils spécialisés (Trail of Bits pattern)
+
+### Static Analysis
+
+| Outil | Stack | Commande |
+|-------|-------|----------|
+| **Semgrep** | Multi | `semgrep --config=p/security-audit --config=p/secrets --sarif .` |
+| **CodeQL** | Multi | Pour les projets GitHub avec Advanced Security activé |
+| **Bandit** | Python | `bandit -r . -f json -o bandit-report.json` |
+| **ESLint security** | JS/TS | `npx eslint --plugin security .` |
+| **gosec** | Go | `gosec -fmt=json -out=gosec-report.json ./...` |
+| **cargo-audit** | Rust | `cargo audit --json` |
+
+Toujours vérifier la disponibilité de l'outil avant de l'invoquer. Si absent, noter "outil non disponible" et passer au suivant.
+
+### SBOM & Dépendances
+
+```bash
+# pip-audit (Python)
+pip-audit --format=json --output pip-audit-report.json 2>/dev/null
+
+# npm audit (Node)
+npm audit --json > npm-audit-report.json 2>/dev/null
+
+# Trivy (multi-stack — vulnérabilités + misconfigs + secrets)
+trivy fs . --format json --output trivy-report.json 2>/dev/null
+
+# Générer un SBOM CycloneDX
+trivy sbom . --format cyclonedx --output sbom.json 2>/dev/null
+```
+
+### Secrets Detection (dédié)
+
+```bash
+# gitleaks — patterns connus + historique git
+gitleaks detect --source . --report-format json --report-path gitleaks-report.json 2>/dev/null
+
+# trufflehog — haute entropie + patterns connus
+trufflehog git file://. --json > trufflehog-report.json 2>/dev/null
+```
+
+Ces outils complètent le Scan 1 (regex manuels) avec des bases de patterns maintenues par la communauté.
+
+### Variant Analysis Pattern
+
+Quand un bug est identifié dans un fichier :
+1. **Extraire le pattern** problématique sous forme de rule Semgrep
+2. **Scanner le codebase** : `semgrep --pattern '<pattern>' --lang <lang> .`
+3. **Lister tous les variants** dans le rapport avec le même CWE
+4. **Prioriser** : les variants dans du code exposé (routes, APIs) sont HIGH, les autres MEDIUM
+
+Exemple concret :
+```bash
+# Bug trouvé : SQL injection via f-string dans app/db.py
+# Chercher tous les f-strings dans des appels .execute()
+semgrep --pattern 'cursor.execute(f"...")' --lang python .
+semgrep --pattern '$X.execute(f"...")' --lang python .
+```
+
+### Audit Context Building (5 Whys)
+
+Pour chaque finding HIGH/CRITICAL, répondre à ces 5 questions dans le rapport :
+1. **Pourquoi cette vulnérabilité existe-t-elle ?** (cause technique directe)
+2. **Quel est le chemin d'exploitation réel ?** (vecteur d'attaque concret)
+3. **Quelles sont les conditions préalables ?** (auth requise ? accès réseau ?)
+4. **Quel est l'impact business réel ?** (données exposées ? RCE ? déni de service ?)
+5. **Quel fix traite la cause racine ?** (pas un patch symptomatique)
+
+### Entry-point Analysis
+
+Cartographier systématiquement les points d'entrée de données non fiables :
+- **HTTP** : routes, query params, headers, body, cookies, file uploads
+- **CLI** : arguments, stdin, variables d'environnement
+- **Files** : uploads, imports CSV/JSON/XML, configuration files
+- **Message queues** : messages entrants (Kafka, RabbitMQ, SQS)
+- **Webhooks** : callbacks de services tiers
+- **IPC** : communication inter-processus, Unix sockets
+
+Pour chaque point d'entrée, vérifier : validation, sanitization, encoding, et trust boundary.
+
 ## CONTRAT DE SORTIE
 
 ```

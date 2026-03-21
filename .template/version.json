@@ -1,5 +1,5 @@
 {
-  "version": "1.3.1",
+  "version": "1.4.0",
   "source": "https://github.com/louisschlegel/claudekit",
   "created": "2026-03-18T00:00:00Z",
   "improvement_history": [
@@ -42,6 +42,13 @@
       "date": "2026-03-20T00:00:00.000000+00:00",
       "type": "patch",
       "summary": "19 hooks (context-monitor, live-handoff, stop-guard, session-end, permission-auto, tool-failure, test-filter), 6 rules (path-scoped), plugin system, agent YAML frontmatter, devils-advocate agent, 4 skills (premortem, review-architecture, tdd, handoff), changelog-tracker, auto-update check, security audit fixes"
+    },
+    {
+      "from": "1.3.1",
+      "to": "1.4.0",
+      "date": "2026-03-21T00:00:00.000000+00:00",
+      "type": "minor",
+      "summary": "6 hooks 2026 (WorktreeCreate/Remove/TeammateIdle/ConfigChange/Elicitation/ElicitationResult), disableBypassPermissionsMode, 3 workflows (SBOM/agentmaxxing/voice), Trail of Bits security skills, MCP catalog 2026 (Context7/SequentialThinking/KnowledgeGraph/Figma/Sentry/Stripe), Homunculus instinct-loop pattern, weekly discovery scan (GitHub Action + Opus), auto-update silencieux niveau 3"
     }
   ]
 }

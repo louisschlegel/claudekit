@@ -8,6 +8,29 @@ PROJECT_NAME="claudekit"
 LEARNING_FILE="learning.md"
 COMPACT_FOCUS="architecture decisions, API contracts, current task context"
 
+# ─── Auto-update claudekit (async, non-bloquant) ──────────────────────────────
+if [ -f "$PROJECT_ROOT/scripts/auto-update.py" ]; then
+  python3 "$PROJECT_ROOT/scripts/auto-update.py" --quiet &
+fi
+
+# ─── Injecter notification si une update a été appliquée ─────────────────────
+UPDATE_NOTIFICATION=""
+UPDATE_APPLIED="$PROJECT_ROOT/.template/update-applied.json"
+if [ -f "$UPDATE_APPLIED" ]; then
+  UPDATE_NOTIFICATION=$(python3 -c "
+import json
+from pathlib import Path
+try:
+    d = json.loads(Path('$UPDATE_APPLIED').read_text())
+    fcount = len(d.get('files_updated', []))
+    print(f\"claudekit auto-updated {d.get('from_version','?')} → {d.get('to_version','?')} ({fcount} fichiers)\")
+except:
+    pass
+" 2>/dev/null || echo "")
+  # Supprimer après lecture pour ne notifier qu'une fois
+  rm -f "$UPDATE_APPLIED"
+fi
+
 # ─── Cas 1 : manifest vide → guide le setup ──────────────────────────────────
 MANIFEST_CONTENT=$(cat "$PROJECT_ROOT/project.manifest.json" 2>/dev/null | tr -d '[:space:]')
 
@@ -62,7 +85,7 @@ if [ "$MANIFEST_CONTENT" = "{}" ] || [ -z "$MANIFEST_CONTENT" ]; then
   SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.local.json"
   MCP_FILE="$PROJECT_ROOT/.mcp.json"
   HOOKS_DIR="$PROJECT_ROOT/.claude/hooks"
-  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
+  KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh"
 
   if [ -f "$SETTINGS_FILE" ]; then
     PERM_COUNT=$(python3 -c "import json; d=json.load(open('$SETTINGS_FILE')); print(len(d.get('permissions',{}).get('allow',[])))" 2>/dev/null || echo "?")
@@ -87,22 +110,13 @@ if [ "$MANIFEST_CONTENT" = "{}" ] || [ -z "$MANIFEST_CONTENT" ]; then
 
   EXISTING_CLAUDE_CLEAN=$(printf "%b" "$EXISTING_CLAUDE")
 
-  # Show a visible message to the user in the terminal
-  echo "" >&2
-  echo -e "\033[1;33m╔══════════════════════════════════════════════════════════╗\033[0m" >&2
-  echo -e "\033[1;33m║  claudekit — Setup requis                               ║\033[0m" >&2
-  echo -e "\033[1;33m║  Claude va te poser quelques questions pour configurer.  ║\033[0m" >&2
-  echo -e "\033[1;33m║  Tape juste Enter ou attends — il démarre tout seul.    ║\033[0m" >&2
-  echo -e "\033[1;33m╚══════════════════════════════════════════════════════════╝\033[0m" >&2
-  echo "" >&2
-
   python3 - "$LEGACY_NOTE" "$STACK_SECTION" "$EXISTING_CLAUDE_CLEAN" <<'PYEOF'
 import json, sys
 legacy = sys.argv[1]
 stack = sys.argv[2]
 existing_claude = sys.argv[3]
 lines = ["=== SETUP REQUIS ==="]
-lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans attendre de message utilisateur. Ne reste pas silencieux — l'utilisateur voit un prompt vide et attend que tu parles.", ""]
+lines += ["", "⚡ ACTION IMMÉDIATE : Lance le SETUP INTERVIEW maintenant, sans attendre de message utilisateur.", ""]
 if legacy:
     lines += [legacy, ""]
 lines += ["Stack detecte :", stack, ""]
@@ -124,101 +138,6 @@ msg = "\n".join(lines)
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": msg}}))
 PYEOF
   exit 0
-fi
-
-# ─── Auto-regen si manifest a changé depuis dernière gen ─────────────────────
-HASH_FILE="$PROJECT_ROOT/.template/manifest.hash"
-MANIFEST_FILE="$PROJECT_ROOT/project.manifest.json"
-CURRENT_HASH=$(python3 -c "import hashlib; print(hashlib.md5(open('$MANIFEST_FILE','rb').read()).hexdigest())" 2>/dev/null || echo "")
-STORED_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "")
-
-if [ -n "$CURRENT_HASH" ] && [ "$CURRENT_HASH" != "$STORED_HASH" ]; then
-  # Try --quiet first, fall back to without it (older gen.py versions)
-  (python3 "$PROJECT_ROOT/scripts/gen.py" --quiet 2>/dev/null || python3 "$PROJECT_ROOT/scripts/gen.py" 2>/dev/null) && \
-    echo "$CURRENT_HASH" > "$HASH_FILE" && \
-    REGEN_NOTE="⚡ project.manifest.json modifié — config régénérée automatiquement." || \
-    REGEN_NOTE=""
-fi
-
-# ─── Check claudekit updates (daily, cached) ─────────────────────────────────
-UPDATE_NOTE=""
-UPDATE_CACHE="$PROJECT_ROOT/.template/update-check.json"
-VERSION_FILE="$PROJECT_ROOT/.template/version.json"
-if [ -f "$VERSION_FILE" ]; then
-  UPDATE_NOTE=$(python3 - "$VERSION_FILE" "$UPDATE_CACHE" << 'PYUPDATE'
-import json, sys, os, time
-from pathlib import Path
-
-version_file = Path(sys.argv[1])
-cache_file = Path(sys.argv[2])
-
-# Only check once per day
-if cache_file.exists():
-    try:
-        cache = json.loads(cache_file.read_text())
-        if time.time() - cache.get("checked_at", 0) < 86400:
-            if cache.get("update_available"):
-                print(f"📦 claudekit {cache['latest']} disponible (actuel: {cache['current']}). Utilise /update-claudekit pour mettre à jour.")
-            sys.exit(0)
-    except:
-        pass
-
-current = json.loads(version_file.read_text()).get("version", "0.0.0")
-
-# Try to fetch latest version (non-blocking, 3s timeout)
-try:
-    import urllib.request
-    req = urllib.request.Request(
-        "https://api.github.com/repos/louisschlegel/claudekit/releases/latest",
-        headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "claudekit"}
-    )
-    with urllib.request.urlopen(req, timeout=3) as resp:
-        data = json.loads(resp.read())
-        latest = data.get("tag_name", "").lstrip("v")
-except:
-    latest = current
-
-cache_data = {
-    "checked_at": time.time(),
-    "current": current,
-    "latest": latest,
-    "update_available": latest != current and latest > current
-}
-cache_file.parent.mkdir(parents=True, exist_ok=True)
-cache_file.write_text(json.dumps(cache_data))
-
-if cache_data["update_available"]:
-    # Fetch release notes to detect new configurable features
-    new_features = []
-    try:
-        body = data.get("body", "")
-        # Detect new configurable items in release notes
-        config_keywords = ["toggle", "flag", "automation.", "manifest", "configurable", "setting", "enable", "disable"]
-        for line in body.split("\n"):
-            if any(kw in line.lower() for kw in config_keywords):
-                clean = line.strip().lstrip("-* ")
-                if clean and len(clean) < 120:
-                    new_features.append(clean)
-    except:
-        pass
-
-    msg = f"📦 claudekit {latest} disponible (actuel: {current})."
-    if new_features:
-        msg += f"\n\n🆕 Nouvelles options configurables dans {latest} :"
-        for f in new_features[:5]:
-            msg += f"\n  • {f}"
-        msg += "\n\n→ Utilise /update-claudekit pour mettre à jour, puis Claude te proposera de configurer les nouvelles options."
-    else:
-        msg += " Utilise /update-claudekit pour mettre à jour."
-    print(msg)
-PYUPDATE
-2>/dev/null || echo "")
-fi
-
-# ─── Check dépendances recommandées ──────────────────────────────────────────
-MISSING_DEPS=""
-if [[ "$(uname)" == "Darwin" ]]; then
-  command -v terminal-notifier &>/dev/null || MISSING_DEPS="${MISSING_DEPS}\n- terminal-notifier (brew install terminal-notifier) — évite que les notifs ouvrent Script Editor"
 fi
 
 # ─── Cas 2 : manifest rempli → injecter le contexte ──────────────────────────
@@ -428,37 +347,14 @@ d=json.load(sys.stdin)
 print(d.get('context',{}).get('compact_focus',''))
 " 2>/dev/null || echo "")
 
-# ─── Signal 11 — Agent mode (manifest.automation.agent_mode) ─────────────────
-AGENT_MODE=$(echo "$MANIFEST" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('automation',{}).get('agent_mode','mono'))" 2>/dev/null || echo "mono")
-
-# ─── Signal 12 — Token usage from last session ────────────────────────────────
-LAST_USAGE=""
-USAGE_FILE="$PROJECT_ROOT/.template/usage.jsonl"
-if [ -f "$USAGE_FILE" ]; then
-  LAST_USAGE=$(tail -5 "$USAGE_FILE" 2>/dev/null | python3 -c "
-import json, sys
-lines = [l for l in sys.stdin if l.strip()]
-if not lines: exit()
-total_input = sum(json.loads(l).get('input_tokens', 0) for l in lines if l.strip())
-total_output = sum(json.loads(l).get('output_tokens', 0) for l in lines if l.strip())
-# Approximate cost: Sonnet input=\$3/Mtok, output=\$15/Mtok
-cost = (total_input * 3 + total_output * 15) / 1_000_000
-print(f'~\${cost:.3f} (last 5 sessions: {total_input:,} in + {total_output:,} out tokens)')
-" 2>/dev/null || echo "")
-fi
-
-python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$AGENT_MODE" "$LAST_USAGE" "${REGEN_NOTE:-}" "${MISSING_DEPS:-}" "${UPDATE_NOTE:-}" <<'PYEOF'
+python3 - "$PROJECT_NAME" "$GIT_BRANCH" "$GIT_STATUS" "$GIT_LOG" "$MANIFEST" "$CUSTOM_RULES" "$LEARNING_FILE" "$LEARNING" "$COVERAGE" "$DEPS_ALERT" "$CI_STATUS" "$TECH_DEBT" "$OLD_BRANCHES" "$HOT_FILES" "$PENDING_MIGRATIONS" "$DOCS_LIST" "$DOCS_CONTENT" "$COMPACT_FOCUS" "$UPDATE_NOTIFICATION" <<'PYEOF'
 import json, sys
 name, branch, status, log, manifest, rules, lfile, learning = sys.argv[1:9]
 coverage, deps_alert, ci_status, tech_debt = sys.argv[9:13]
 old_branches, hot_files, pending_migrations = sys.argv[13:16]
 docs_list, docs_content = sys.argv[16:18]
 compact_focus = sys.argv[18] if len(sys.argv) > 18 else ""
-agent_mode = sys.argv[19] if len(sys.argv) > 19 else "mono"
-last_usage = sys.argv[20] if len(sys.argv) > 20 else ""
-regen_note = sys.argv[21] if len(sys.argv) > 21 else ""
-missing_deps = sys.argv[22] if len(sys.argv) > 22 else ""
-update_note = sys.argv[23] if len(sys.argv) > 23 else ""
+update_notif = sys.argv[19] if len(sys.argv) > 19 else ""
 
 ctx = "\n".join([
     f"=== {name} - SESSION START ===",
@@ -471,14 +367,14 @@ ctx = "\n".join([
     f"Manifest:\n{manifest}",
 ])
 
+if update_notif:
+    ctx = f"[AUTO-UPDATE] {update_notif}\n\n" + ctx
+
 op_lines = ["", "=== ETAT OPERATIONNEL ===", ""]
 op_lines.append(f"Tests: {coverage}")
 op_lines.append(f"Securite: {'⚠️  ' + deps_alert if deps_alert else 'deps OK'}")
 op_lines.append(f"CI/CD: {ci_status if ci_status else 'non configuré'}")
 op_lines.append(f"Dette: {tech_debt if tech_debt else 'aucun TODO/FIXME détecté'}")
-op_lines.append(f"Agent mode: {agent_mode} ({'parallel worktrees recommended for large tasks' if agent_mode == 'team' else 'single agent'})")
-if last_usage:
-    op_lines.append(f"Token cost: {last_usage}")
 
 alerts = []
 if old_branches:
@@ -505,17 +401,5 @@ if rules:
     ctx += f"\n\nRegles custom:\n{rules}"
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
 if compact_focus:
-    ctx += f"\n\nContexte compact (focus) : {compact_focus}"
-ctx += f"\nAgent mode: {agent_mode} ({'parallel worktrees for large tasks' if agent_mode == 'team' else 'single agent'})"
-if last_usage:
-    ctx += f"\nCost estimate: {last_usage}"
-if regen_note:
-    ctx += f"\n\n{regen_note}"
-if missing_deps.strip():
-    import re
-    deps = [d.strip() for d in re.split(r'\\n', missing_deps) if d.strip()]
-    ctx += f"\n\n=== DÉPENDANCES RECOMMANDÉES MANQUANTES ===\n" + "\n".join(deps)
-if update_note:
-    ctx += f"\n\n{update_note}"
-print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
+    ctx += f"\n\nContexte compact (focus) : {compact_focus}"print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF

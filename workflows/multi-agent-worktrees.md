@@ -9,6 +9,54 @@
 - Git repo propre (pas de modifications non commitées)
 - Claude Code 2.0+ (TeammateTool supporté)
 
+---
+
+## Mode 1 — Agent Teams (natif, recommandé)
+
+Nécessite : `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+
+1. Activer : `export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+2. Lancer Claude Code normalement
+3. Utiliser le TeammateTool ou `--teammate-mode` pour spawner des agents
+4. Le "team lead" coordonne via une task list partagée
+5. Chaque "teammate" a son propre context window
+
+**Avantages** : coordination native, communication directe entre agents, pas de setup manuel
+**Limites** : coût linéaire (N context windows), overhead de coordination, feature en rollout progressif
+
+---
+
+## Mode 2 — Worktrees manuels (voir ci-dessous)
+
+Pour les environnements sans Agent Teams ou pour un contrôle plus fin sur les branches.
+
+## Limites pratiques (Mode 2)
+
+| Ressource | Limite recommandée |
+|-----------|-------------------|
+| Agents simultanés (laptop) | 5-7 max |
+| Agents simultanés (serveur) | 10-15 max |
+| Merge conflicts | Croissent avec N — décomposer finement |
+
+## Monitoring tmux
+
+```bash
+# Spawner des sessions tmux par agent
+tmux new-session -d -s agents
+for n in $(seq 1 N); do
+  tmux new-window -t agents -n "agent-$n" \
+    "cd .worktrees/task-$n && claude '[description tâche $n]'"
+done
+tmux attach -t agents
+
+# Vérifier la progression
+for n in $(seq 1 N); do
+  echo "Agent $n: $(git -C .worktrees/task-$n log --oneline -1 2>/dev/null || echo 'pas de commit')"
+done
+```
+
+---
+
 ## Étapes
 
 ### 1. Décomposition (Architect)

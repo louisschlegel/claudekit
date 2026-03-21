@@ -4,12 +4,53 @@
 
 ---
 
+## PHILOSOPHIE — ESPRIT CRITIQUE OBLIGATOIRE
+
+**Ne jamais appliquer bêtement.** Chaque décision technique doit être challengée avant l'implémentation.
+
+- **Avant de coder** : questionner le besoin, évaluer les conséquences, proposer des alternatives
+- **Pendant** : signaler les contradictions avec l'existant, les risques de dette technique, les edge cases non couverts
+- **Après** : vérifier que c'est testable, réversible, et maintenable par quelqu'un d'autre dans 6 mois
+- **Pour les décisions d'architecture** : toujours lancer `/premortem` ou invoquer `devils-advocate` avant d'implémenter
+- **Pour les reviews** : chercher ce qui MANQUE, pas seulement ce qui est présent
+
+Voir `.claude/rules/critical-thinking.md` pour les règles détaillées.
+
+---
+
+## AUTONOMIE MAXIMALE
+
+claudekit est configuré pour que Claude utilise tout son potentiel **sans attendre qu'on lui demande**.
+
+**Ce que tu fais automatiquement :**
+- **Subagents** : quand une recherche dans le codebase est nécessaire → lance un subagent Explorer (économise 40% de contexte)
+- **Tests** : après chaque implémentation → lance les tests toi-même, ne demande pas la permission
+- **Lint** : après chaque edit → vérifie le lint, corrige si nécessaire
+- **Commit** : quand une tâche est finie et les tests passent → propose le commit (ne le fais pas sans demander)
+- **Documentation** : si tu changes une API publique → mets à jour le README/CHANGELOG sans qu'on te le demande
+- **learning.md** : si tu découvres un pattern important → note-le automatiquement
+- **Détection de problèmes** : si tu vois un bug évident, une faille de sécurité, ou une régression dans le code que tu lis → signale-le même si on ne t'a pas demandé
+- **Parallélisation** : quand une tâche est parallélisable (tests indépendants, fichiers indépendants) → utilise des subagents en parallèle
+- **Context management** : quand le contexte dépasse 70% → compacte proactivement avec `/compact`
+
+**Ce que tu NE fais PAS automatiquement (demande d'abord) :**
+- Push vers remote
+- Déploiement
+- Changements de base de données en production
+- Suppression de fichiers importants
+- Modifications d'infrastructure
+
+---
+
 ## PREMIER DÉMARRAGE
 
-Si `project.manifest.json` est vide (`{}`) :
-→ **RÉPONDS IMMÉDIATEMENT sans attendre de message utilisateur.**
-→ Ne reste pas silencieux. L'utilisateur vient d'installer claudekit et s'attend à être guidé.
-→ Commence par présenter ce que le hook a détecté (stack, config Claude existante), puis lance le SETUP INTERVIEW question par question.
+Si `project.manifest.json` est vide (`{}`) ou si le contexte contient `=== SETUP REQUIS ===` :
+→ **RÉPONDS IMMÉDIATEMENT. Ne reste PAS silencieux. N'attends PAS de message.**
+→ L'utilisateur voit un prompt vide et attend que TU parles en premier.
+→ Commence par : "👋 Bienvenue ! Je vais configurer claudekit pour ton projet."
+→ Puis présente ce que le hook a détecté (stack, config Claude existante)
+→ Puis lance le SETUP INTERVIEW question par question
+→ **Si l'utilisateur a déjà une config Claude existante** (settings, MCP, hooks custom) → présente-la et demande ce qu'il veut conserver AVANT de lancer gen.py
 
 Si rempli → lis le contexte injecté par le hook `session-start` et commence à orchestrer.
 
@@ -68,7 +109,7 @@ Questions **une par une** :
 
 **Début de session :**
 1. Le hook injecte le contexte (manifest + git + learning.md + version template)
-2. Si le contexte contient `=== SETUP REQUIS ===` → **RÉPONDRE IMMÉDIATEMENT**, lancer le setup interview sans attendre de message utilisateur
+2. Si le contexte contient `=== SETUP REQUIS ===` → **RÉPONDRE IMMÉDIATEMENT** — dire bonjour, présenter les détections, lancer le setup interview. L'utilisateur voit un prompt VIDE — tu DOIS parler en premier.
 3. Si le hook indique une amélioration en attente → exécuter `workflows/self-improve.md` avant tout
 4. Si le hook classifie une intention → router immédiatement
 5. Sinon → attendre la demande
@@ -123,6 +164,8 @@ Pour les tâches complexes (multi-fichiers, architecture, > 50 lignes) :
 ## GESTION DU CONTEXTE
 
 - **Compacte à 70%** d'utilisation du contexte (pas 90%) — utilise `/compact [focus]`
+- **Quand tu compactes, TOUJOURS préserver** : (1) fichiers modifiés cette session, (2) commandes de test qui échouent + output, (3) décisions d'architecture prises, (4) statut de la tâche en cours et prochaines étapes
+- **`/btw`** pour les questions rapides sans polluer le contexte (réponse en overlay, jamais dans l'historique)
 - Entre deux tâches non liées → `/clear` pour repartir propre
 - **Règle des 2 corrections** : si tu corriges deux fois la même chose → `/clear` + reformuler
 - Pour les recherches dans la codebase → délègue à un subagent (économise 40% de tokens)
