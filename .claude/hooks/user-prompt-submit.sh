@@ -65,6 +65,8 @@ INTENT_RULES = [
     ("multi-agent",      ["multi-agent", "worktrees parallèles", "parallel worktrees", "lance des agents en parallèle"]),
     ("notebook",         ["notebook review", "revue notebook", "jupyter review", "analyse le notebook"]),
     ("riper",            ["riper", "research innovate plan execute review", "méthodologie riper"]),
+    ("monitoring-setup", ["monitoring", "surveille", "loop", "watch", "health check continu", "monitor"]),
+    ("remote-dev",       ["remote", "remote control", "depuis mon tel", "mobile", "from my phone"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]
