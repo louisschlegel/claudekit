@@ -1642,15 +1642,22 @@ def build_hooks(manifest: dict) -> dict:
         "timeout": 3
     })
     hooks["PostToolUse"] = [{
-        "matcher": "Edit|Write|Bash|MultiEdit",
+        "matcher": "Edit|Write|MultiEdit",
         "hooks": post_tool_hooks
+    }, {
+        "matcher": "Bash",
+        "hooks": [{
+            "type": "command",
+            "command": "bash .claude/hooks/observability.sh",
+            "timeout": 3
+        }]
     }]
 
-    # Injection defender — scan tool outputs for prompt injection
+    # Injection defender — scan EXTERNAL tool outputs only (not Bash/Read which are trusted)
     automation = manifest.get("automation", {})
     if automation.get("injection_defense", True):
         hooks["PostToolUse"].append({
-            "matcher": "Read|Bash|WebFetch|WebSearch",
+            "matcher": "WebFetch|WebSearch",
             "hooks": [{
                 "type": "command",
                 "command": "bash .claude/hooks/injection-defender.sh",
