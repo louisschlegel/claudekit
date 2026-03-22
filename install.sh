@@ -109,7 +109,7 @@ print(', '.join(d.get('mcpServers', {}).keys()))
   fi
 
   # Workflows custom
-  CLAUDEKIT_WORKFLOWS="feature bugfix hotfix release security-audit dependency-update dependency-audit refactor onboard onboarding self-improve db-migration incident-response performance-baseline publish-package api-design a-b-test data-quality llm-eval spec-to-project code-review monitoring-setup cost-optimization multi-agent-worktrees context-handoff notebook-review cost-dashboard riper mcp-vetting agent-teams cost-audit skill-lifecycle"
+  CLAUDEKIT_WORKFLOWS="feature bugfix hotfix release security-audit dependency-update dependency-audit refactor onboard onboarding self-improve db-migration incident-response performance-baseline publish-package api-design a-b-test data-quality llm-eval spec-to-project code-review monitoring-setup monitoring cost-optimization multi-agent-worktrees context-handoff notebook-review cost-dashboard riper mcp-vetting agent-teams cost-audit skill-lifecycle agentmaxxing remote-dev sbom-supply-chain voice-mode"
   if [ -d "$dst/workflows" ]; then
     for wf in "$dst/workflows"/*.md; do
       [ -f "$wf" ] || continue

@@ -108,6 +108,8 @@ Questions **une par une** :
 
 @.claude/docs/agents-table.md
 
+@.claude/docs/skills-table.md
+
 ## 📖 PROTOCOLE DE SESSION
 
 **Début de session :**
