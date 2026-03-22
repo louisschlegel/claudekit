@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hook: SubagentStop — log subagent completion for observability
+# Hook: ElicitationResult — log the result of a completed MCP elicitation
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
@@ -16,9 +16,11 @@ log_path.parent.mkdir(exist_ok=True)
 
 entry = {
     "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
-    "event": "SubagentStop",
-    "agent_id": data.get("agent_id", "unknown"),
-    "duration_ms": data.get("duration_ms"),
+    "event": "ElicitationResult",
+    "mcp_server_name": data.get("mcp_server_name", "unknown"),
+    "action": data.get("action", ""),
+    "elicitation_id": data.get("elicitation_id", ""),
+    "has_content": bool(data.get("content")),
 }
 with open(log_path, "a") as f:
     f.write(json.dumps(entry) + "\n")

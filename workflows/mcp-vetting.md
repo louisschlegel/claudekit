@@ -78,6 +78,33 @@ Décision : **APPROVE** / **APPROVE_WITH_RESTRICTIONS** / **REJECT**
 }
 ```
 
+## MCP recommandés — pré-vettés
+
+Ces serveurs ont été évalués et sont intégrés au catalogue officiel claudekit. Ils n'ont pas besoin de passer par ce workflow — utiliser directement les commandes d'installation de `.claude/docs/mcp-catalog.md`.
+
+| Serveur | Statut | Restriction |
+|---------|--------|-------------|
+| `filesystem` | APPROVED | Limiter aux chemins nécessaires |
+| `github` | APPROVED | Token en lecture seule recommandé |
+| `postgres` | APPROVED | Utilisateur DB en lecture seule pour prod |
+| `sqlite` | APPROVED | Aucune |
+| `brave-search` | APPROVED | Clé API requise |
+| `slack` | APPROVED | Limiter aux workspaces du projet |
+| `linear` | APPROVED | Aucune |
+| `notion` | APPROVED | Aucune |
+| `playwright` | APPROVED | Ne pas exposer à des URLs non maîtrisées |
+| `desktop-commander` | APPROVED_WITH_RESTRICTIONS | Risque élevé — confirmer chaque action |
+| `context7` | APPROVED | Aucune |
+| `sequential-thinking` | APPROVED | Aucune |
+| `memory` | APPROVED | Vérifier le répertoire de stockage |
+| `sentry` | APPROVED | Token en lecture seule uniquement |
+| `stripe` | APPROVED_WITH_RESTRICTIONS | Clé API read-only obligatoire — jamais de clé secrète complète |
+| `figma` | APPROVED | Nécessite Figma Pro + Dev Mode |
+
+Tout serveur absent de cette liste doit suivre le workflow complet ci-dessous.
+
+---
+
 ## CONTRAT DE SORTIE
 
 - [ ] Recherche complétée : repo, auteur, stars, license vérifiés

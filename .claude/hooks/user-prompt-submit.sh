@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 INPUT=$(cat)
-PROMPT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('userMessage','') or d.get('prompt',''))" 2>/dev/null || echo "")
+PROMPT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('prompt',''))" 2>/dev/null || echo "")
 
 python3 - "$PROMPT" <<'PYEOF'
 import sys, json, re
@@ -56,17 +56,19 @@ INTENT_RULES = [
     ("monitoring-setup", ["setup monitoring", "configure observabilité", "ajoute prometheus", "grafana", "datadog", "configure les alertes", "métriques", "logs centralisés", "tracing", "observabilité"]),
     ("cost-optimization",["optimise les coûts", "réduis les coûts cloud", "trop cher aws", "facture cloud", "optimise les tokens", "rightsizing", "coûts llm", "burn rate trop élevé", "coût infrastructure"]),
     ("dependency-audit", ["audit les dépendances", "vérifie les cve", "scan les vulnérabilités", "dépendances vulnérables", "npm audit", "pip-audit", "security scan deps", "snyk", "licence check"]),
-    ("mcp-vetting",       ["ajoute ce mcp", "évalue ce mcp", "vette ce mcp", "add mcp server", "ajoute un mcp", "nouveau serveur mcp", "mcp vetting", "évalue le serveur mcp", "test this mcp"]),
-    ("agent-teams",      ["lance une équipe", "agent team", "team mode", "parallel agents", "multi-agent team", "spawn agents"]),
-    ("cost-audit",       ["audit des coûts", "cost audit", "combien ça coûte", "token usage", "cost report", "optimise les coûts tokens"]),
-    ("skill-lifecycle",  ["crée une skill", "create skill", "extract skill", "promote pattern", "skill lifecycle", "nouvelle skill"]),
-    ("context-handoff",  ["handoff", "passe le contexte", "context handoff", "session handoff", "sauvegarde le contexte"]),
-    ("cost-dashboard",   ["dashboard de coûts", "cost dashboard", "tableau de bord coûts", "visualise les coûts"]),
-    ("multi-agent",      ["multi-agent", "worktrees parallèles", "parallel worktrees", "lance des agents en parallèle"]),
-    ("notebook",         ["notebook review", "revue notebook", "jupyter review", "analyse le notebook"]),
-    ("riper",            ["riper", "research innovate plan execute review", "méthodologie riper"]),
-    ("monitoring-setup", ["monitoring", "surveille", "loop", "watch", "health check continu", "monitor"]),
-    ("remote-dev",       ["remote", "remote control", "depuis mon tel", "mobile", "from my phone"]),
+    ("sbom",             ["sbom", "supply chain", "bom.xml", "cyclonedx", "spdx", "trivy sbom", "génère un sbom", "audit supply chain"]),
+    ("agentmaxxing",    ["agentmaxxing", "plusieurs agents en parallèle", "swarm", "batch refactor", "worktree parallèle", "lance en parallèle", "tmux agents"]),
+    ("voice",            ["/voice", "voice mode", "mode vocal", "parler à claude", "push to talk"]),
+    ("multi-agent",      ["multi-agent", "worktree parallèle", "agents en parallèle", "parallélise sur worktrees"]),
+    ("context-handoff",  ["handoff", "passe le contexte", "context handoff", "contexte de session", "reprends le contexte"]),
+    ("notebook",         ["notebook", "jupyter", "ipynb", "revue du notebook", "cellule python"]),
+    ("cost-dashboard",   ["cost dashboard", "tableau de bord coûts", "visualise les coûts", "coûts llm dashboard"]),
+    ("riper",            ["riper", "/riper", "research implement present"]),
+    ("mcp-vetting",      ["mcp vetting", "vérifie ce mcp", "audite ce mcp", "sécurité mcp", "vetting mcp"]),
+    ("agent-teams",      ["agent teams", "agent team", "équipe d'agents", "coordination agents"]),
+    ("cost-audit",       ["cost audit", "audit des coûts", "analyse les coûts", "coûts par session", "token usage audit"]),
+    ("skill-lifecycle",  ["skill lifecycle", "cycle de vie skill", "promouvoir un skill", "skill evolution"]),
+    ("remote-dev",       ["remote dev", "développement distant", "ssh dev", "remote container", "dev container distant"]),
     ("feature",          ["implémente", "ajoute", "crée une feature", "nouvelle feature", "add feature", "implement"]),
     ("question",         ["comment", "comment fonctionne", "explique", "qu'est-ce que", "pourquoi", "what is", "how does", "explain"]),
 ]

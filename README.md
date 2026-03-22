@@ -2,7 +2,7 @@
 
 [![Validate](https://github.com/louisschlegel/claudekit/actions/workflows/validate.yml/badge.svg)](https://github.com/louisschlegel/claudekit/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](.template/version.json)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](.template/version.json)
 
 Un template auto-configurant, auto-améliorant et critique par design, qui génère toute l'infrastructure Claude Code adaptée à n'importe quel projet — 19 hooks, 23 agents, 31 workflows, 15 skills, 11 commands, 7 rules, config generator, injection defense, auto-update — à partir d'un simple interview conversationnel.
 

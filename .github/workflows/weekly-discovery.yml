@@ -1,0 +1,40 @@
+name: Weekly Discovery Scan
+
+on:
+  schedule:
+    - cron: '0 20 * * 0'  # Dimanche 20h UTC
+  workflow_dispatch:        # Déclenchement manuel aussi
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run discovery scan
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/discovery-scan.py
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet pending-features.md .template/discovery-seen.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit discoveries
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "claudekit-bot"
+          git config user.email "claudekit@users.noreply.github.com"
+          git add pending-features.md .template/discovery-seen.json
+          git commit -m "chore: weekly discovery scan $(date +%Y-W%V)"
+          git push

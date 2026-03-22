@@ -28,6 +28,9 @@ Le hook `user-prompt-submit.sh` classifie l'intention et l'injecte en contexte.
 | `cost-optimization` | → `workflows/cost-optimization.md` |
 | `dependency-audit` | → `workflows/dependency-audit.md` |
 | `multi-agent` | → `workflows/multi-agent-worktrees.md` |
+| `sbom` | → `workflows/sbom-supply-chain.md` |
+| `agentmaxxing` | → `workflows/agentmaxxing.md` |
+| `voice` | → `workflows/voice-mode.md` |
 | `context-handoff` | → `workflows/context-handoff.md` |
 | `notebook` | → `workflows/notebook-review.md` |
 | `cost-dashboard` | → `workflows/cost-dashboard.md` |
@@ -37,7 +40,6 @@ Le hook `user-prompt-submit.sh` classifie l'intention et l'injecte en contexte.
 | `cost-audit` | → `workflows/cost-audit.md` |
 | `skill-lifecycle` | → `workflows/skill-lifecycle.md` |
 | `remote-dev` | → `workflows/remote-dev.md` |
-| `monitoring-setup` | → `workflows/monitoring.md` |
 | `question` | → réponse directe, pas de workflow |
 | `other` | → demande de clarification, puis route |
 

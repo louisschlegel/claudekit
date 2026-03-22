@@ -1,5 +1,6 @@
 #!/bin/bash
-# Hook: SubagentStop — log subagent completion for observability
+# Hook: WorktreeCreate — log worktree creation event
+# Fires when Claude creates a new git worktree (--worktree flag)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
@@ -16,9 +17,9 @@ log_path.parent.mkdir(exist_ok=True)
 
 entry = {
     "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
-    "event": "SubagentStop",
-    "agent_id": data.get("agent_id", "unknown"),
-    "duration_ms": data.get("duration_ms"),
+    "event": "WorktreeCreate",
+    "worktree_path": data.get("worktree_path", "unknown"),
+    "branch": data.get("branch", "unknown"),
 }
 with open(log_path, "a") as f:
     f.write(json.dumps(entry) + "\n")

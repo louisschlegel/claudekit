@@ -70,3 +70,15 @@ learning.md
 .template/session-files.txt
 .claude/worktrees/
 .template/update-check.json
+
+# claudekit runtime logs
+.template/config-history.jsonl
+.template/update-log.jsonl
+.template/last-update-check.txt
+.template/update-applied.json
+.template/session-backup.md
+.template/session-files.txt
+.template/agent-events.jsonl
+
+# agent memory (session-specific)
+.claude/agent-memory/
