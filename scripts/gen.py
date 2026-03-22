@@ -940,7 +940,8 @@ if rules:
     ctx += f"\n\nRegles custom:\n{rules}"
 ctx += f"\n\n{lfile} (dernieres 60 lignes):\n{learning}"
 if compact_focus:
-    ctx += f"\n\nContexte compact (focus) : {compact_focus}"print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
+    ctx += f"\n\nContexte compact (focus) : {compact_focus}"
+print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}}))
 PYEOF
 '''
 
