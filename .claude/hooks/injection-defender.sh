@@ -5,7 +5,7 @@
 
 INPUT=$(cat)
 
-python3 - "$INPUT" << 'PYEOF'
+python3 - "$INPUT" << 'PYEOF' 2>/dev/null
 import json, sys, re
 
 raw = sys.argv[1] if len(sys.argv) > 1 else ""

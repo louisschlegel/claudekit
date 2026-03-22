@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](.template/version.json)
 
-Un template auto-configurant, auto-améliorant et critique par design, qui génère toute l'infrastructure Claude Code adaptée à n'importe quel projet — 19 hooks, 23 agents, 31 workflows, 15 skills, 11 commands, 7 rules, config generator, injection defense, auto-update — à partir d'un simple interview conversationnel.
+Un template auto-configurant, auto-améliorant et critique par design, qui génère toute l'infrastructure Claude Code adaptée à n'importe quel projet — 25 hooks, 23 agents, 36 workflows, 24 skills, 11 commands, 7 rules, config generator, injection defense, auto-update — à partir d'un simple interview conversationnel.
 
 ---
 
@@ -40,12 +40,12 @@ ton-projet/
 ├── .mcp.json                    # Serveurs MCP configurés
 ├── .claude/
 │   ├── settings.local.json      # Permissions Bash adaptées à ton stack
-│   ├── hooks/                   # 19 hooks
+│   ├── hooks/                   # 25 hooks
 │   ├── agents/                  # 23 agents (YAML frontmatter: tools, model, memory)
-│   ├── skills/                  # 15 skills (TDD, premortem, code-review, configure, etc.)
+│   ├── skills/                  # 24 skills (TDD, premortem, code-review, configure, etc.)
 │   ├── commands/                # 11 commands (/check-security, /new-module, etc.)
 │   └── rules/                   # 7 path-scoped rules (security, testing, critical-thinking)
-├── workflows/                   # 31 workflows end-to-end
+├── workflows/                   # 36 workflows end-to-end
 ├── .claude-plugin/plugin.json   # Plugin system compatibility
 └── examples/claude-md/          # 4 example CLAUDE.md (Next.js, Django, Go, Rust)
 ```
