@@ -50,7 +50,7 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 
 # ── Known claudekit hooks (used by both audit and copy) ──────────────────────
-KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh"
+KNOWN_HOOKS="session-start.sh user-prompt-submit.sh pre-bash-guard.sh post-edit.sh stop.sh pre-push.sh pre-compact.sh notification.sh subagent-stop.sh observability.sh injection-defender.sh context-monitor.sh live-handoff.sh stop-guard.sh session-end.sh permission-auto.sh tool-failure.sh test-filter.sh manifest-regen.sh worktree-create.sh worktree-remove.sh teammate-idle.sh config-change.sh elicitation.sh elicitation-result.sh"
 
 # ── Audit existing Claude config ──────────────────────────────────────────────
 audit_existing() {
@@ -135,13 +135,9 @@ copy_files() {
   mkdir -p "$dst/.claude/hooks" "$dst/.claude/agents" "$dst/.claude/skills" "$dst/.claude/commands" "$dst/.claude/rules" "$dst/.claude/docs" "$dst/workflows" "$dst/scripts" "$dst/.template"
 
   # Scripts claudekit — toujours mis à jour (ce sont des outils, pas du contenu user)
-  cp "$src/scripts/gen.py" "$dst/scripts/gen.py"
-  cp "$src/scripts/auto-learn.py" "$dst/scripts/auto-learn.py"
-  cp "$src/scripts/self-improve.py" "$dst/scripts/self-improve.py"
-  cp "$src/scripts/version-bump.py" "$dst/scripts/version-bump.py"
-  cp "$src/scripts/changelog-gen.py" "$dst/scripts/changelog-gen.py"
-  cp "$src/scripts/claudekit.py" "$dst/scripts/claudekit.py"
-  cp "$src/scripts/migrate-template.py" "$dst/scripts/migrate-template.py"
+  for script in gen.py auto-learn.py self-improve.py version-bump.py changelog-gen.py claudekit.py migrate-template.py instinct-loop.py auto-update.py discovery-scan.py evolve.sh file-suggestion.sh statusline.sh check.sh; do
+    [ -f "$src/scripts/$script" ] && cp "$src/scripts/$script" "$dst/scripts/$script"
+  done
 
   # Hooks claudekit — copier TOUS les hooks gérés (gen.py les régénère de toute façon)
   for hook in "$src/.claude/hooks"/*.sh; do
@@ -188,25 +184,35 @@ copy_files() {
     cp "$src/.claude-plugin/plugin.json" "$dst/.claude-plugin/plugin.json" 2>/dev/null
   fi
 
-  # Agents — cp -n : n'écrase pas les agents existants (custom ou modifiés)
+  # Agents — écrase les agents claudekit (managed), préserve les agents custom
   for agent in "$src/.claude/agents"/*.md; do
     [ -f "$agent" ] || continue
     aname=$(basename "$agent")
-    if [ -f "$dst/.claude/agents/$aname" ]; then
-      PRESERVED_AGENTS="${PRESERVED_AGENTS} $aname"
+    aname_noext=$(basename "$agent" .md)
+    is_claudekit=0
+    for known in $CLAUDEKIT_AGENTS; do [ "$aname_noext" = "$known" ] && is_claudekit=1 && break; done
+    if [ "$is_claudekit" -eq 1 ]; then
+      cp "$agent" "$dst/.claude/agents/$aname"  # toujours mis à jour
+    elif [ ! -f "$dst/.claude/agents/$aname" ]; then
+      cp "$agent" "$dst/.claude/agents/$aname"  # nouveau fichier custom du template
     else
-      cp "$agent" "$dst/.claude/agents/$aname"
+      PRESERVED_AGENTS="${PRESERVED_AGENTS} $aname"
     fi
   done
 
-  # Workflows — cp -n : n'écrase pas les workflows existants (custom ou modifiés)
+  # Workflows — écrase les workflows claudekit (managed), préserve les workflows custom
   for wf in "$src/workflows"/*.md; do
     [ -f "$wf" ] || continue
     wname=$(basename "$wf")
-    if [ -f "$dst/workflows/$wname" ]; then
-      PRESERVED_WORKFLOWS="${PRESERVED_WORKFLOWS} $wname"
-    else
+    wname_noext=$(basename "$wf" .md)
+    is_claudekit=0
+    for known in $CLAUDEKIT_WORKFLOWS; do [ "$wname_noext" = "$known" ] && is_claudekit=1 && break; done
+    if [ "$is_claudekit" -eq 1 ]; then
+      cp "$wf" "$dst/workflows/$wname"  # toujours mis à jour
+    elif [ ! -f "$dst/workflows/$wname" ]; then
       cp "$wf" "$dst/workflows/$wname"
+    else
+      PRESERVED_WORKFLOWS="${PRESERVED_WORKFLOWS} $wname"
     fi
   done
 
@@ -221,10 +227,19 @@ copy_files() {
 
   cp "$src/learning.md.template" "$dst/learning.md.template"
 
-  # Template meta files — jamais écrasés
-  if [ ! -f "$dst/.template/version.json" ]; then
-    cp "$src/.template/version.json" "$dst/.template/version.json"
+  # GitHub Action weekly-discovery
+  if [ -f "$src/.github/workflows/weekly-discovery.yml" ]; then
+    mkdir -p "$dst/.github/workflows"
+    cp "$src/.github/workflows/weekly-discovery.yml" "$dst/.github/workflows/weekly-discovery.yml"
   fi
+
+  # pending-features.md — seulement si absent
+  if [ ! -f "$dst/pending-features.md" ] && [ -f "$src/pending-features.md" ]; then
+    cp "$src/pending-features.md" "$dst/pending-features.md"
+  fi
+
+  # Template meta files — version.json toujours mis à jour
+  cp "$src/.template/version.json" "$dst/.template/version.json"
   if [ ! -f "$dst/.template/known-patterns.json" ]; then
     cp "$src/.template/known-patterns.json" "$dst/.template/known-patterns.json"
   fi
