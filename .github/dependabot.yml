@@ -10,3 +10,25 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "chore(deps)"
+
+  # Python : `pyproject.toml` n'était couvert par aucun bloc jusqu'au 29/10/2026 — le
+  # veilleur le signalait « écosystème détecté, non couvert ». Les alertes marchaient,
+  # mais aucune mise à jour régulière n'était proposée : un paquet restait à sa version
+  # d'origine jusqu'à ce qu'une CVE le réveille.
+  # Groupé minor+patch : sans groupe, chaque paquet ouvre sa PR et personne ne les lit.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      python-sur:
+        update-types:
+          - "minor"
+          - "patch"
